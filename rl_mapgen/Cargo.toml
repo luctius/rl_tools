@@ -1,0 +1,49 @@
+[package]
+authors = ["Luctius Invictus <luctius@luctius@gmail.com>"]
+edition = "2018"
+name = "rl_mapgen"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+build = "build.rs"
+
+[badges]
+[badges.maintenance]
+status = "actively-developed"
+
+[[bench]]
+harness = false
+name = "simple"
+
+[build-dependencies]
+cargo-readme = "*"
+
+[dependencies]
+min_max_macros = "0.1.1"
+pathfinding = "1.1.12"
+rand = "0.6"
+triangulation = "*"
+yansi = "*"
+
+[dependencies.rl_utils]
+path = "../rl_utils/"
+
+[dev-dependencies]
+criterion = "*"
+
+[[example]]
+name = "bsp"
+
+[[example]]
+name = "stack"
+
+[[example]]
+name = "room"
+
+[[example]]
+name = "poly_room"
+
+[[example]]
+name = "cellula_automata"
+
+[[example]]
+name = "walker"

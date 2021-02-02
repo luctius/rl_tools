@@ -1,0 +1,20 @@
+[package]
+authors = ["Luctius Invictus <luctius@luctius@gmail.com>"]
+edition = "2018"
+name = "rl_utils"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+build = "build.rs"
+
+[badges]
+[badges.maintenance]
+status = "actively-developed"
+
+[dependencies]
+min_max_macros = "0.1.1"
+pathfinding = "1.1.12"
+triangulation = "*"
+yansi = "*"
+
+[build-dependencies]
+cargo-readme = "*"

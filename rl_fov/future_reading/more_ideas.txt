@@ -1,0 +1,9 @@
+http://www.roguebasin.com/index.php?title=An_Efficient_Observation_Algorithm
+http://roguebasin.roguelikedevelopment.org/index.php?title=Simple_and_accurate_LOS_function_for_BlitzMax
+http://www.roguebasin.com/index.php?title=LOS_using_strict_definition
+https://github.com/LambdaHack/LambdaHack/wiki/Fov-and-los
+http://www.roguebasin.com/index.php?title=Digital_lines#The_complete_list_of_Digital_Lines
+https://github.com/crawl/crawl/blob/master/crawl-ref/source/los.cc
+https://github.com/LambdaHack/LambdaHack/blob/v0.8.3.0/Game/LambdaHack/Common/Point.hs#L113
+https://github.com/bluss/rpasha/blob/master/src/shadowcasting.rs
+http://www.adammil.net/blog/v125_roguelike_vision_algorithms.html#intro

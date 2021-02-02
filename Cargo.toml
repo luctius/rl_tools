@@ -1,0 +1,28 @@
+[workspace]
+members=[
+    "rl_utils",
+    "rl_ecs",
+    "rl_fov",
+    "rl_mapgen",
+]
+
+[profile]
+[profile.release]
+codegen-units = 1
+incremental = false
+lto = true
+opt-level = 3
+debug = true
+
+[profile.bench]
+codegen-units = 1
+incremental = false
+lto = true
+opt-level = 3
+debug = true
+
+[profile.test]
+codegen-units = 1
+incremental = false
+opt-level = 3
+debug = true

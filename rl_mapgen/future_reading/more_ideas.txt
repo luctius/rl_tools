@@ -1,0 +1,35 @@
+http://www.roguebasin.com/index.php?title=Random_Zone_Generation<Paste>
+http://www.roguebasin.com/index.php?title=The_Incredible_Power_of_Dijkstra_Maps
+http://www.roguebasin.com/index.php?title=Winding_ways
+http://www.roguebasin.com/index.php?title=CreatingAForest
+http://www.roguebasin.com/index.php?title=C%2B%2B_Example_of_Dungeon-Building_Algorithm#Version_3
+http://www.roguebasin.com/index.php?title=Diffusion-limited_aggregation
+http://www.roguebasin.com/index.php?title=Designing_Flexible,_Reusable_Algorithms
+https://www.rockpapershotgun.com/2015/07/28/how-do-roguelikes-generate-levels/
+http://www.astrolog.org/labyrnth/algrithm.htm
+https://www.reddit.com/r/roguelikedev/comments/69cvhx/faq_fridays_revisited_7_loot_distribution/
+https://www.reddit.com/r/roguelikedev/comments/80051z/distribution_of_items/
+https://gamedevelopment.tutsplus.com/tutorials/how-to-use-bsp-trees-to-generate-game-maps--gamedev-12268
+http://www.roguebasin.com/index.php?title=Irregular_Shaped_Rooms
+http://www.roguebasin.com/index.php?title=A_Simple_Dungeon_Generator_for_Python_2_or_3
+http://www.roguebasin.com/index.php?title=Dungeon_builder_written_in_Python
+http://www.roguebasin.com/index.php?title=Basic_directional_dungeon_generation
+
+https://github.com/blanchfor/rotjs/blob/master/rot.js
+http://ondras.github.io/rot.js/manual/
+https://github.com/paulofmandown/rotLove/tree/master/src/rot
+https://github.com/japanoise/dmap/blob/master/dijkstra.go
+
+perlin noise crate:
+https://github.com/YeyaSwizaw/rust-worldgen
+
+Brogue GIFS:
+https://gfycat.com/ifr/HorribleTanBumblebee
+https://gfycat.com/ifr/GoldenZestyCutworm
+https://gfycat.com/ifr/BriefSparseCutworm
+https://gfycat.com/ifr/FastShockedDwarfmongoose
+
+https://www.reddit.com/r/roguelikedev/comments/ayw8eo/generating_spaceship_layouts/
+https://github.com/stewsters/shipwright
+
+https://github.com/marukrap/RoguelikeDevResources

@@ -1,0 +1,36 @@
+[package]
+authors = ["Luctius Invictus <luctius@luctius@gmail.com>"]
+edition = "2018"
+name = "rl_fov"
+version = "0.1.0"
+license = "MIT OR Apache-2.0"
+
+[dependencies]
+#bitarray = "*"
+bitset-core = "0.1.1"
+generic-array = "*"
+lazy_static = "*"
+
+[dependencies.rl_utils]
+path = "../rl_utils/"
+
+[dev-dependencies]
+criterion = "*"
+crossterm = "*"
+yansi = "*"
+
+[dev-dependencies.rl_mapgen]
+path = "../rl_mapgen/"
+
+#[[example]]
+#name = "tester"
+
+[[example]]
+name = "fov_tests"
+
+[[example]]
+name = "los_tests"
+
+[[bench]]
+harness = false
+name = "simple"
