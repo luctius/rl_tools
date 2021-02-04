@@ -43,17 +43,20 @@ impl MapMovement {
 #[derive(Debug, Clone, PartialEq)]
 pub struct Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     pub area: Area,
     pub data: Vec<T>,
 }
 impl<T> Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     pub fn new(size: Coord) -> Self {
-        Map { area: Area::new((0, 0).into(), size), data: Vec::with_capacity((size.x * size.y) as usize) }
+        Map {
+            area: Area::new((0, 0).into(), size),
+            data: Vec::with_capacity((size.x * size.y) as usize),
+        }
     }
 
     pub fn with_offset(mut self, offset: Coord) -> Self {
@@ -79,13 +82,29 @@ where
     }
 
     pub fn get(&self, pos: Coord) -> Option<&T> {
-        self.data.get((pos.y as usize * self.area.size.x as usize) + pos.x as usize)
+        self.data
+            .get((pos.y as usize * self.area.size.x as usize) + pos.x as usize)
     }
 
     pub fn get_mut(&mut self, pos: Coord) -> Option<&mut T> {
-        self.data.get_mut((pos.y as usize * self.area.size.x as usize) + pos.x as usize)
+        self.data
+            .get_mut((pos.y as usize * self.area.size.x as usize) + pos.x as usize)
     }
 
+    pub fn iter(&'_ self) -> MapIterator<'_, T> {
+        MapIterator {
+            pos: 0,
+            size: self.area.size,
+            start: self.area.position,
+            map: self.data.as_slice(),
+        }
+    }
+}
+
+impl<T> Map<T>
+where
+    T: MapObject,
+{
     pub fn walkable_tiles(&self, pos: Coord, movement: MapMovement) -> Vec<(Coord, usize)> {
         let mut retvec = vec![];
         for i in movement.get_reachable_tiles() {
@@ -103,10 +122,6 @@ where
         retvec
     }
 
-    pub fn iter(&'_ self) -> MapIterator<'_, T> {
-        MapIterator { pos: 0, size: self.area.size, start: self.area.position, map: self.data.as_slice() }
-    }
-
     pub fn import_from_iter(&mut self, iter: MapIterator<T>) {
         for (xy, t) in iter {
             if !t.is_transparent() {
@@ -119,7 +134,7 @@ where
 }
 impl<T> Display for Map<T>
 where
-    T: MapObject + Display,
+    T: Display + Debug + Clone + PartialEq,
 {
     fn fmt(&self, f: &mut Formatter) -> Result {
         for y in 0..self.area.size.y {
@@ -133,7 +148,7 @@ where
 }
 impl<T> Index<usize> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     type Output = T;
 
@@ -143,7 +158,7 @@ where
 }
 impl<T> Index<isize> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     type Output = T;
 
@@ -153,7 +168,7 @@ where
 }
 impl<T> Index<Coord> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     type Output = T;
 
@@ -164,7 +179,7 @@ where
 }
 impl<T> Index<&Coord> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     type Output = T;
 
@@ -175,7 +190,7 @@ where
 }
 impl<T> IndexMut<Coord> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     fn index_mut(&'_ mut self, pos: Coord) -> &'_ mut Self::Output {
         assert!(self.area.point_within(pos));
@@ -184,7 +199,7 @@ where
 }
 impl<T> IndexMut<&Coord> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     fn index_mut(&'_ mut self, pos: &Coord) -> &'_ mut Self::Output {
         assert!(self.area.point_within(*pos));
@@ -193,7 +208,7 @@ where
 }
 impl<T> Index<(usize, usize)> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     type Output = T;
 
@@ -204,7 +219,7 @@ where
 }
 impl<T> IndexMut<(usize, usize)> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     fn index_mut(&'_ mut self, pos: (usize, usize)) -> &'_ mut Self::Output {
         assert!(self.area.point_within(pos.into()));
@@ -214,7 +229,7 @@ where
 
 impl<T> Index<(isize, isize)> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     type Output = T;
 
@@ -225,7 +240,7 @@ where
 }
 impl<T> IndexMut<(isize, isize)> for Map<T>
 where
-    T: MapObject,
+    T: Debug + Clone + PartialEq,
 {
     fn index_mut(&'_ mut self, pos: (isize, isize)) -> &'_ mut Self::Output {
         assert!(self.area.point_within(pos.into()));
@@ -256,7 +271,10 @@ where
         if self.pos < self.size.x * self.size.y {
             self.pos += 1;
             Some((
-                ((((self.pos - 1) % self.size.x) + self.start.x), (((self.pos - 1) / self.size.x) + self.start.y))
+                (
+                    (((self.pos - 1) % self.size.x) + self.start.x),
+                    (((self.pos - 1) / self.size.x) + self.start.y),
+                )
                     .into(),
                 self.map[(self.pos - 1) as usize].clone(),
             ))
