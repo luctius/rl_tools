@@ -2,7 +2,7 @@
 //!
 //! There are two kinds of Dungeon Generators in this crate.
 //!
-//!The first are the 'simple' Room Generators
+//! The first are the 'simple' Room Generators
 //!
 //! Both kinds implement [DungeonConfigurer](trait.DungeonConfigurer.html) and
 //! [DungeonBuilder].
@@ -26,11 +26,13 @@ use rand::{prelude::SliceRandom, rngs::SmallRng, FromEntropy, Rng, SeedableRng};
 
 use rl_utils::{Area, Coord, Map, MapIterator, MapObject, MovementCost};
 
-use crate::corridors::{walker_corridor, CorridorFunction};
-use crate::spawn_placement::SpawnPlacements;
-use crate::utils::{Dir, Tile};
+use crate::{
+    corridors::{walker_corridor, CorridorFunction},
+    spawn_placement::SpawnPlacements,
+    utils::{Dir, Tile},
+};
 
-/*Room Builders*/
+// Room Builders
 mod bsp;
 mod cellular_automata;
 mod poly_room;
@@ -38,31 +40,30 @@ mod room;
 mod stack;
 mod walker;
 
-pub use self::bsp::Bsp;
-pub use self::cellular_automata::CellularAutomata;
-pub use self::poly_room::PolyRoom;
-pub use self::room::Room;
-pub use self::stack::Stack;
-pub use self::walker::Walker;
+pub use self::{
+    bsp::Bsp, cellular_automata::CellularAutomata, poly_room::PolyRoom, room::Room, stack::Stack, walker::Walker,
+};
 
 /// The basic parameters of any Dungeon Generator
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct DungeonParams {
-    ///Size and position of the dungeon.
+    /// Size and position of the dungeon.
     area: Area,
-    ///The random seed to be used while creating the dungeon.
+    /// The random seed to be used while creating the dungeon.
     seed: u64,
 }
 impl DungeonParams {
     /// Creates a new [DungeonParams](struct.DungeonParams.html)
     pub fn new(size_x: isize, size_y: isize) -> DungeonParams {
-        DungeonParams { area: Area::new((0, 0).into(), (size_x, size_y).into()), seed: SmallRng::from_entropy().gen() }
+        DungeonParams { area: Area::new((0, 0).into(), (size_x, size_y).into()), seed: SmallRng::from_entropy().gen(), }
     }
+
     /// Similar as [new()](struct.DungeonParams.html#new) but also supplies a random seed. Used to avoid initialising a random
     /// generator from entropy.
     pub fn new_with_seed(size_x: isize, size_y: isize, seed: u64) -> Self {
         DungeonParams { area: Area::new((0, 0).into(), (size_x, size_y).into()), seed }
     }
+
     /// Sets the start of the Dungeon to something else than (0,0). Only usefull if using it within
     /// another dungeon.
     pub fn with_offset(mut self, offset: Coord) -> Self {
@@ -83,18 +84,15 @@ impl DungeonParams {
 pub trait DungeonConfigurer {
     /// Creates a new dungeon.
     fn new(size_x: isize, size_y: isize) -> Self
-    where
-        Self: Sized;
+        where Self: Sized;
 
     /// Adds a specific random seed to be used with the generation of this dungeon.
     fn with_rng_seed(self, seed: u64) -> Self
-    where
-        Self: Sized;
+        where Self: Sized;
 
     /// Adds a specific offset to the dungeons position, which is normally (0,0).
     fn with_offset(self, start_x: isize, start_y: isize) -> Self
-    where
-        Self: Sized;
+        where Self: Sized;
 }
 
 /// Defines the generic actions of every builder.
@@ -186,20 +184,17 @@ pub trait DungeonBuilder {
 pub trait DungeonCombiner {
     /// Override the basic DungeonBuilder, which is most often the Room builder.
     fn with_default_builder(self, builder: Box<dyn DungeonBuilder>) -> Self
-    where
-        Self: Sized;
+        where Self: Sized;
     /// Add additional builders, with a percentage change. A cumulative percentage larger than
     /// 100% makes sense in that not all builders will be called for every room. Some builders
     /// simply may be too large to fit at that spot. Also the order in which the builders are
     /// supplied matters, and it is generally wise to supply larger builders first, to ensure they
     /// have a chance of actually being used.
     fn with_additional_builder(self, percentage: isize, builder: Box<dyn DungeonBuilder>) -> Self
-    where
-        Self: Sized;
+        where Self: Sized;
     /// Override the basic DungeonBuilder, which is most often the walker corridor.
     fn with_default_corridor(self, corridor: Box<CorridorFunction>) -> Self
-    where
-        Self: Sized;
+        where Self: Sized;
 }
 
 /// The main struct of this crate.
@@ -239,14 +234,14 @@ pub trait DungeonCombiner {
 /// [DungeonCombiner]: trait.DungeonCombiner.html
 #[derive(Debug, PartialEq, Clone)]
 pub struct Dungeon {
-    pub(crate) builder: String,
-    pub(crate) area: Area,
-    pub(crate) map: Map<Tile>,
-    pub(crate) seed: u64,
-    pub(crate) rooms: Vec<Area>,
+    pub(crate) builder:      String,
+    pub(crate) area:         Area,
+    pub(crate) map:          Map<Tile>,
+    pub(crate) seed:         u64,
+    pub(crate) rooms:        Vec<Area>,
     pub(crate) secret_rooms: Vec<Area>,
-    pub(crate) corridors: Vec<Vec<Coord>>,
-    pub(crate) stairs: Vec<Coord>,
+    pub(crate) corridors:    Vec<Vec<Coord>>,
+    pub(crate) stairs:       Vec<Coord>,
     pub(crate) spawn_points: Vec<(Coord, Tile)>,
 }
 impl Dungeon {
@@ -254,20 +249,19 @@ impl Dungeon {
     /// This should normally happen only within a [DungeonBuilder].
     /// [DungeonBuilder]: trait.DungeonBuilder.html
     pub(crate) fn new(builder: String, params: DungeonParams) -> Dungeon {
-        let mut d = Dungeon {
-            builder,
-            area: params.area,
-            map: Map::new(params.area.size),
-            seed: params.seed,
-            rooms: vec![],
-            secret_rooms: vec![],
-            corridors: vec![],
-            stairs: vec![],
-            spawn_points: vec![],
-        };
+        let mut d = Dungeon { builder,
+                              area: params.area,
+                              map: Map::new(params.area.size),
+                              seed: params.seed,
+                              rooms: vec![],
+                              secret_rooms: vec![],
+                              corridors: vec![],
+                              stairs: vec![],
+                              spawn_points: vec![] };
         d.map.fill(Tile::Transparent);
         d
     }
+
     /// Add stairs to the map.
     ///
     /// The Target [Tile](../utils/tile/enum.Tile.html) represents the type of tile whichshould be replaced.
@@ -293,12 +287,14 @@ impl Dungeon {
         // Update the rng
         self.seed = rng.gen();
     }
+
     /// A convenience function which calls [add_stairs()](struct.Dungeon.html#method.add_stairs) and returns a
     /// [Dungeon](struct.Dungeon.html).
     pub fn with_stairs(mut self, target: Tile, placement: SpawnPlacements) -> Dungeon {
         self.add_stairs(target, placement);
         self
     }
+
     /// Add a spawn point to the map
     ///
     /// spawn_tile represents the icon of the spawn-point. It is used for later reference and in
@@ -342,31 +338,28 @@ impl Dungeon {
             if let Some(point) = placement.place(Tile::Floor, Tile::Floor, &self.spawn_points, &self, rng.gen()) {
                 self.seed = rng.gen();
 
-                let mut search_area: [Coord; 8] = [
-                    (-1, -3).into(),
-                    (0, -3).into(),
-                    (-3, -1).into(),
-                    (2, -1).into(),
-                    (-3, 0).into(),
-                    /*(0, 0)*/ (2, 0).into(),
-                    (-1, 2).into(),
-                    (0, 2).into(),
-                ];
+                let mut search_area: [Coord; 8] = [(-1, -3).into(),
+                                                   (0, -3).into(),
+                                                   (-3, -1).into(),
+                                                   (2, -1).into(),
+                                                   (-3, 0).into(),
+                                                   // (0, 0)
+                                                   (2, 0).into(),
+                                                   (-1, 2).into(),
+                                                   (0, 2).into()];
                 let box_area: [Coord; 4] = [(0, 0).into(), (1, 0).into(), (0, 1).into(), (1, 1).into()];
-                let empty_box_area: [Coord; 12] = [
-                    (-1, -1).into(),
-                    (0, -1).into(),
-                    (1, -1).into(),
-                    (2, 1).into(),
-                    (-1, 0).into(),
-                    (2, 0).into(),
-                    (-1, 1).into(),
-                    (2, 1).into(),
-                    (-1, 2).into(),
-                    (0, 2).into(),
-                    (1, 2).into(),
-                    (2, 2).into(),
-                ];
+                let empty_box_area: [Coord; 12] = [(-1, -1).into(),
+                                                   (0, -1).into(),
+                                                   (1, -1).into(),
+                                                   (2, 1).into(),
+                                                   (-1, 0).into(),
+                                                   (2, 0).into(),
+                                                   (-1, 1).into(),
+                                                   (2, 1).into(),
+                                                   (-1, 2).into(),
+                                                   (0, 2).into(),
+                                                   (1, 2).into(),
+                                                   (2, 2).into()];
 
                 let mut box_area_walled = true;
                 let mut empty_area_walled = true;
@@ -391,16 +384,14 @@ impl Dungeon {
 
                             if empty_area_walled {
                                 let secret_area = Area::new(search_point, (1, 1).into());
-                                let door_mod: [Coord; 8] = [
-                                    (0, -1).into(),
-                                    (1, -1).into(),
-                                    (-1, 0).into(),
-                                    (2, 0).into(),
-                                    (-1, 1).into(),
-                                    (2, 1).into(),
-                                    (0, 2).into(),
-                                    (1, 2).into(),
-                                ];
+                                let door_mod: [Coord; 8] = [(0, -1).into(),
+                                                            (1, -1).into(),
+                                                            (-1, 0).into(),
+                                                            (2, 0).into(),
+                                                            (-1, 1).into(),
+                                                            (2, 1).into(),
+                                                            (0, 2).into(),
+                                                            (1, 2).into()];
                                 for c in &door_mod {
                                     if point.is_neightbour(search_point + *c) {
                                         self.map[search_point + *c] = Tile::SecretDoor;
@@ -425,37 +416,29 @@ impl Dungeon {
         self.add_secret_room();
         self
     }
+
     fn create_access_point_from(&mut self, other: Coord) -> Option<Coord> {
         self.create_access_point(Dir::get_direction(self.area.center(), other))
     }
+
     fn create_access_point(&mut self, dir: Dir) -> Option<Coord> {
         let (ap, c_mod, search_area) = match dir {
-            Dir::North => (
-                Coord::new(self.area.size.x / 2, 1),
-                Coord::new(0, 2),
-                Area::new((self.area.size.x / 4, 1).into(), (self.area.size.x / 2, self.area.size.y / 2).into()),
-            ),
-            Dir::South => (
-                Coord::new(self.area.size.x / 2, self.area.size.y - 2),
-                Coord::new(0, -2),
-                Area::new(
-                    (self.area.size.x / 4, self.area.size.y - (self.area.size.y / 2)).into(),
-                    (self.area.size.x / 2, self.area.size.y / 2).into(),
-                ),
-            ),
-            Dir::West => (
-                Coord::new(self.area.size.x - 2, self.area.size.y / 2),
-                Coord::new(-2, 0),
-                Area::new(
-                    (self.area.size.x / 2, self.area.size.y / 4).into(),
-                    (self.area.size.x / 2, self.area.size.y / 2).into(),
-                ),
-            ),
-            Dir::East => (
-                Coord::new(1, self.area.size.y / 2),
-                Coord::new(2, 0),
-                Area::new((1, self.area.size.y / 4).into(), (self.area.size.x / 2, self.area.size.y / 2).into()),
-            ),
+            Dir::North => (Coord::new(self.area.size.x / 2, 1),
+                           Coord::new(0, 2),
+                           Area::new((self.area.size.x / 4, 1).into(),
+                                     (self.area.size.x / 2, self.area.size.y / 2).into())),
+            Dir::South => (Coord::new(self.area.size.x / 2, self.area.size.y - 2),
+                           Coord::new(0, -2),
+                           Area::new((self.area.size.x / 4, self.area.size.y - (self.area.size.y / 2)).into(),
+                                     (self.area.size.x / 2, self.area.size.y / 2).into())),
+            Dir::West => (Coord::new(self.area.size.x - 2, self.area.size.y / 2),
+                          Coord::new(-2, 0),
+                          Area::new((self.area.size.x / 2, self.area.size.y / 4).into(),
+                                    (self.area.size.x / 2, self.area.size.y / 2).into())),
+            Dir::East => (Coord::new(1, self.area.size.y / 2),
+                          Coord::new(2, 0),
+                          Area::new((1, self.area.size.y / 4).into(),
+                                    (self.area.size.x / 2, self.area.size.y / 2).into())),
         };
 
         let mut best = std::f64::MAX;
@@ -502,16 +485,21 @@ impl Dungeon {
     ///
     /// Other iterators give access to other created features.
     pub fn iter(&'_ self) -> MapIterator<'_, Tile> {
-        MapIterator { pos: 0, size: self.area.size, start: self.area.position, map: &self.map.data }
+        MapIterator { pos: 0, size: self.area.size, start: self.area.position, map: &self.map.data, }
     }
 
     /// Similar to [iter()](struct.Dungeon.html#method.iter), with the difference that this iterates over a subset of the total map.
     pub fn area_iter(&'_ self, area: Area) -> Option<MapIterator<'_, Tile>> {
         if self.area.area_within(area) {
-            Some(MapIterator { pos: 0, size: area.size, start: area.position, map: &self.map.data })
+            Some(MapIterator { pos: 0, size: area.size, start: area.position, map: &self.map.data, })
         } else {
             None
         }
+    }
+
+    /// Returns the area covered by this dungeon
+    pub fn area(&self) -> Area {
+        self.area
     }
 
     /// Returns an Iterator of Coords with the position of each stair generated.
