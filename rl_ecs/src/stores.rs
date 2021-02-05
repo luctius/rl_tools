@@ -19,6 +19,12 @@ pub trait FetchDataNode {
     fn remove_by_id(&mut self, victim: IdInt) -> Result<Option<IdInt>, Error>;
 }
 
+pub trait FetchResources {
+    type Output;
+    fn fetch_resource<'a>(&'a self) -> &'a Self::Output;
+    fn fetch_resource_mut<'a>(&'a mut self) -> &'a mut Self::Output;
+}
+
 #[derive(Debug, Copy, Clone, PartialEq, PartialOrd)]
 pub struct Builder {}
 impl Builder {
@@ -47,6 +53,20 @@ pub trait FinishBuilding
         self.register_self(&mut ids, size);
 
         RlEcs { id: ids, bin: self.finish_priv(size), }
+    }
+
+    fn finalize_with_resource<T>(self,
+                                 resource: T)
+                                 -> RlEcs<ResourceNode<<Self as FinishBuildingPrivate>::Output, T>, { Self::SIZE }>
+    {
+        let size = Self::SIZE - 1;
+        let mut ids = IdStorage::new();
+
+        self.register_self(&mut ids, size);
+
+        RlEcs { id:  ids,
+                bin: ResourceNode { node: self.finish_priv(size),
+                                    resource }, }
     }
 }
 
@@ -226,6 +246,40 @@ impl<A, B> FetchDataNode for DataChainNode2<A, B>
 }
 impl<A, B> BinStoragePrivate for DataChainNode2<A, B> where Self: FetchDataNode {}
 impl<A, B> BinStorage for DataChainNode2<A, B> where Self: FetchDataNode {}
+
+#[derive(Debug, Clone, PartialEq, PartialOrd)]
+pub struct ResourceNode<A, B>
+    where A: BinStorage, {
+    node:     A,
+    resource: B,
+}
+impl<A, B> ChainSize for ResourceNode<A, B> where A: BinStorage + ChainSize, {
+    const SIZE: usize = A::SIZE;
+}
+impl<A, B> FetchDataNode for ResourceNode<A, B> where A: BinStorage + FetchDataNode, {
+    fn fetch_node<T: Any + 'static>(&self) -> Option<&DataNode<T>> { self.node.fetch_node() }
+
+    fn fetch_node_mut<T: Any + 'static>(&mut self) -> Option<&mut DataNode<T>> { self.node.fetch_node_mut() }
+
+    fn remove_by_id(&mut self, victim: IdInt) -> Result<Option<IdInt>, Error> { self.node.remove_by_id(victim) }
+}
+impl<A, B> FetchResources for ResourceNode<A, B> where A: BinStorage, {
+    type Output = B;
+
+    fn fetch_resource<'a>(&'a self) -> &'a Self::Output { &self.resource }
+
+    fn fetch_resource_mut<'a>(&'a mut self) -> &'a mut Self::Output { &mut self.resource }
+}
+impl<A, B> BinStoragePrivate for ResourceNode<A, B>
+    where Self: FetchDataNode,
+          A: BinStorage,
+{
+}
+impl<A, B> BinStorage for ResourceNode<A, B>
+    where Self: FetchDataNode,
+          A: BinStorage,
+{
+}
 
 #[cfg(test)]
 mod tests {
