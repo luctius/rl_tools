@@ -33,3 +33,6 @@ https://www.reddit.com/r/roguelikedev/comments/ayw8eo/generating_spaceship_layou
 https://github.com/stewsters/shipwright
 
 https://github.com/marukrap/RoguelikeDevResources
+
+https://www.reddit.com/r/roguelikedev/comments/jibkku/how_do_you_furnishpopulate_rooms_in_your/
+https://journal.stuffwithstuff.com/2014/12/21/rooms-and-mazes/
