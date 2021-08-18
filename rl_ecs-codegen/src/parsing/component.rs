@@ -1,0 +1,87 @@
+use proc_macro2::Span;
+use syn::{
+    braced, bracketed,
+    parse::{Parse, ParseStream, Result},
+    LitInt, Token, Type,
+};
+
+use crate::TypeId;
+
+pub struct Component {
+    pub id: Option<TypeId>,
+    pub r#type: Type,
+    pub children: Vec<Child>,
+    pub unique: bool,
+}
+impl Parse for Component {
+    fn parse(input: ParseStream) -> Result<Self> {
+        let mut children = Vec::new();
+
+        let ty: Type = input.parse()?;
+        if input.parse::<Token![:]>().is_ok() {
+            let children_stream;
+            braced!(children_stream in input);
+
+            loop {
+                let child: Child = children_stream.parse()?;
+                children.push(child);
+
+                let r = children_stream.parse::<Token![,]>();
+                if children_stream.is_empty() {
+                    break;
+                } else if let Err(e) = r {
+                    return Err(e);
+                }
+            }
+        }
+
+        println!("component: {:?}", ty);
+        Ok(Self {
+            id: None,
+            r#type: ty,
+            children,
+            unique: false,
+        })
+    }
+}
+
+#[derive(Copy,Clone,Debug)]
+pub enum ChildType {
+    Single,
+    Array(usize),
+    Vec,
+}
+
+pub struct Child {
+    pub r#type: Type,
+    pub child_type: ChildType,
+}
+impl Parse for Child {
+    fn parse(input: ParseStream) -> Result<Self> {
+        if let Ok(ty) = input.parse() {
+            Ok(Self {
+                r#type: ty,
+                child_type: ChildType::Single,
+            })
+        } else {
+            let child;
+            bracketed!(child in input);
+
+            let ty: Type = child.parse()?;
+
+            let child_type = if child.lookahead1().peek(Token![;]) {
+                child.parse::<Token![;]>()?;
+                let lit: LitInt = input.parse()?;
+                let value = lit.base10_parse::<usize>()?;
+                ChildType::Array(value)
+            } else {
+                ChildType::Vec
+            };
+
+            Ok(Self {
+                r#type: ty,
+                child_type,
+            })
+        }
+    }
+}

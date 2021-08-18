@@ -10,6 +10,7 @@ license = "MIT OR Apache-2.0"
 bitset-core = "0.1.1"
 generic-array = "*"
 lazy_static = "*"
+#symmetric-shadowcasting = "0.2.0"
 
 [dependencies.rl_utils]
 path = "../rl_utils/"

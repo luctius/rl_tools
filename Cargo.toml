@@ -1,9 +1,11 @@
 [workspace]
 members=[
     "rl_utils",
-    "rl_ecs",
     "rl_fov",
     "rl_mapgen",
+    "rl_ecs",
+    "rl_ecs-codegen",
+    "rl_ecs-codegen/rl_ecs-tests",
 ]
 
 [profile]
