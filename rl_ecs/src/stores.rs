@@ -2,15 +2,20 @@ use crate::{id::Id, Error};
 use serde::{Deserialize, Serialize};
 use slotmap::{basic::Iter, SecondaryMap, SlotMap};
 
-pub use slotmap::DefaultKey;
+use slotmap::Key;
 
+// TODO: make Serde optional
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Store<T, CIDT> {
-    pub bin: SlotMap<DefaultKey, T>,
-    pub id:  SecondaryMap<DefaultKey, CIDT>,
+pub struct Store<T, CIDT, KEY>
+    where KEY: Key, {
+    pub bin: SlotMap<KEY, T>,
+    pub id:  SecondaryMap<KEY, CIDT>,
 }
-impl<T, CIDT> Store<T, CIDT> {
-    pub fn new() -> Self { Self { bin: SlotMap::new(), id: SecondaryMap::new(), } }
+impl<T, CIDT, KEY> Store<T, CIDT, KEY> where KEY: Key, {
+    pub fn new() -> Self { Self { bin: SlotMap::with_key(), id: SecondaryMap::new(), } }
+}
+impl<T, CIDT, KEY> Default for Store<T, CIDT, KEY> where KEY: Key, {
+    fn default() -> Self { Self::new() }
 }
 
 pub trait Ecs<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>> {
@@ -29,8 +34,9 @@ pub trait StoreEx<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>> {
     fn remove(&mut self, key: ID) -> Result<(), Error>;
 }
 
-pub trait RlEcsStore<KEY, KEYTYPE, T>
-    where KEY: Id<Idx = DefaultKey, Type = KEYTYPE>, {
+pub trait RlEcsStore<ID, KEYTYPE, T, KEY>
+    where ID: Id<Idx = KEY, Type = KEYTYPE>,
+          KEY: Key, {
     fn create(&mut self, t: T) -> KEY;
     fn create_and_attach(&mut self, parent: KEY, t: T) -> Result<KEY, Error>;
     fn get(&self, k: KEY) -> Result<Option<&T>, Error>;

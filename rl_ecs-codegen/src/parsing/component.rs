@@ -2,14 +2,15 @@ use proc_macro2::Span;
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream, Result},
-    LitInt, Token, Type,
+    LitInt, Token, TypePath,
 };
 
 use crate::TypeId;
 
+#[derive(Debug)]
 pub struct Component {
     pub id: Option<TypeId>,
-    pub r#type: Type,
+    pub r#type: TypePath,
     pub children: Vec<Child>,
     pub unique: bool,
 }
@@ -17,7 +18,7 @@ impl Parse for Component {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut children = Vec::new();
 
-        let ty: Type = input.parse()?;
+        let ty = input.parse()?;
         if input.parse::<Token![:]>().is_ok() {
             let children_stream;
             braced!(children_stream in input);
@@ -35,7 +36,6 @@ impl Parse for Component {
             }
         }
 
-        println!("component: {:?}", ty);
         Ok(Self {
             id: None,
             r#type: ty,
@@ -45,15 +45,16 @@ impl Parse for Component {
     }
 }
 
-#[derive(Copy,Clone,Debug)]
+#[derive(Copy, Clone, Debug)]
 pub enum ChildType {
     Single,
     Array(usize),
     Vec,
 }
 
+#[derive(Debug)]
 pub struct Child {
-    pub r#type: Type,
+    pub r#type: TypePath,
     pub child_type: ChildType,
 }
 impl Parse for Child {
@@ -67,11 +68,11 @@ impl Parse for Child {
             let child;
             bracketed!(child in input);
 
-            let ty: Type = child.parse()?;
+            let ty = child.parse()?;
 
             let child_type = if child.lookahead1().peek(Token![;]) {
                 child.parse::<Token![;]>()?;
-                let lit: LitInt = input.parse()?;
+                let lit: LitInt = child.parse()?;
                 let value = lit.base10_parse::<usize>()?;
                 ChildType::Array(value)
             } else {

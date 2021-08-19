@@ -1,6 +1,10 @@
 pub mod id;
 pub mod stores;
 
+pub mod slotmap {
+    pub use slotmap::{Key, SlotMap, SecondaryMap, basic::Iter, new_key_type};
+}
+
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, PartialEq, Eq, PartialOrd, Ord, Debug, Serialize, Deserialize)]

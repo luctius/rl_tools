@@ -2,22 +2,47 @@ use rl_ecs_codegen::create_ecs;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct Position {}
+struct Creature {}
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct Velocity {}
+struct Stats {}
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct Movement {}
+struct Inventory {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Item {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Tile {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Weight {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Action {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Damage {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Location {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Movable {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct ToolUser {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Timer {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Player {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Time {}
+#[derive(Copy, Clone, Debug, Serialize, Deserialize)]
+struct Counter {
+    ctr: usize,
+}
 
 create_ecs! {
     pub world Ecs {
         components: {
-            Creature: { Stats, ToolUser, Location, Movable, Action },
+            Creature: { [Stats;2], ToolUser, Location, Movable, Action },
             Stats,
             Inventory: { [Item] },
-            /*OR*/ Inventory: { [Item;2] },
-            Item: { Weight },
+            Item,
             Tile: { Location, Inventory, },
-            Weight,
+            Weight: {Creature},
             Action,
             Damage,
             Location,

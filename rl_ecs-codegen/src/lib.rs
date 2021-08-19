@@ -12,17 +12,20 @@ pub(crate) type TypeId = usize;
 
 mod parsing;
 mod validation;
+mod codegen;
 
 use parsing::ParseEcs;
 use validation::ValidatedEcs;
 
 #[proc_macro]
 pub fn create_ecs(input: TokenStream) -> TokenStream {
-    let ecs = match ValidatedEcs::try_from(parse_macro_input!(input as ParseEcs)) {
+    let pecs = parse_macro_input!(input as ParseEcs);
+    // dbg!(&pecs);
+    
+    let ecs = match ValidatedEcs::try_from(pecs) {
         Ok(ecs) => ecs,
         Err(error) => return error.to_compile_error().into(),
     };
 
-    let temp = quote! {};
-    TokenStream::from(temp)
+    TokenStream::from(ecs)
 }

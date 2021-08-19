@@ -3,22 +3,23 @@ use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
 };
-use syn::{spanned::Spanned, Error, Result, Type};
+use syn::{spanned::Spanned, Error, Result, TypePath};
 
+use super::{AllComponents, TypeId};
 use crate::parsing;
 
-use crate::TypeId;
-
+#[derive(Debug)]
 pub struct Component {
     pub id: TypeId,
-    pub r#type: Type,
+    pub name: String,
+    pub r#type: TypePath,
     pub children: Vec<Child>,
     pub unique: bool,
 }
 impl Component {
     pub fn try_into_component_list(
         v: Vec<crate::parsing::component::Component>,
-    ) -> Result<HashMap<TypeId, Self>> {
+    ) -> Result<AllComponents> {
         let mut list = HashMap::with_capacity(v.len());
         let mut duplicate_check_list = HashSet::with_capacity(v.len());
 
@@ -26,6 +27,7 @@ impl Component {
         for c in &v {
             let children = Vec::with_capacity(c.children.len());
             let id = c.id.unwrap(); //Can this fail? if so, it should be an internal error...
+            let name = c.r#type.path.segments.last().unwrap().ident.to_string();
 
             if !duplicate_check_list.insert(c.r#type.clone()) {
                 return Err(Error::new(
@@ -41,6 +43,7 @@ impl Component {
                     r#type: c.r#type.clone(),
                     children,
                     unique: c.unique,
+                    name,
                 },
             );
         }
@@ -48,7 +51,7 @@ impl Component {
         // Register all child components and find their component ids
         for comp in v {
             for child in &comp.children {
-                let type_id = match Component::search_component(&child.r#type, &list) {
+                let id = match Component::search_component(&child.r#type, &list) {
                     Some(id) => id,
                     None => {
                         return Err(Error::new(
@@ -59,52 +62,103 @@ impl Component {
                 };
                 let child_type = child.child_type.into();
 
-                list.get_mut(&type_id)
+                list.get_mut(&comp.id.unwrap())
                     .as_mut()
                     .unwrap()
                     .children
                     .push(Child {
-                        type_id,
+                        id,
                         child_type,
                         span: child.r#type.span(),
                     });
             }
         }
 
-        // Check for component -> child cycle
         for c in list.values() {
-            c.component_child_cycle_check(c.id, &list, 0)?;
+            c.component_child_uiques_check(&list)?;
+        }
+
+        // Check for component -> child cycle
+        let mut name_trace = Vec::new();
+        let mut id_trace = Vec::new();
+        for c in list.values() {
+            name_trace.push(c.name.as_str());
+            id_trace.push(c.id);
+            c.component_child_cycle_check(&list, &mut name_trace, &mut id_trace)?;
+            name_trace.pop();
+            id_trace.pop();
         }
 
         Ok(list)
     }
-    pub fn search_component(typ: &Type, list: &HashMap<TypeId, Self>) -> Option<TypeId> {
+    pub fn search_component(typ: &TypePath, list: &AllComponents) -> Option<TypeId> {
         list.iter()
             .find_map(|(k, v)| (*typ == v.r#type).then(|| *k))
     }
 
-    fn component_child_cycle_check(
-        &self,
-        origin: TypeId,
-        all: &HashMap<TypeId, Self>,
-        count: usize,
-    ) -> Result<()> {
+    fn component_child_uiques_check(&self, all: &AllComponents) -> Result<()> {
         for child in &self.children {
-            const MAX: usize = 1_000;
+            let c = all.get(&child.id).unwrap();
+            if c.unique {
+                let child_error = Error::new(
+                    child.span,
+                    "uniques cannot be used as children.",
+                );
+                let mut comp_error = Error::new(
+                    self.r#type.span(),
+                    "regular components cannot use a unique as child.",
+                );
+                comp_error.combine(child_error);
+                return Err(comp_error);
+            }
+        }
 
-            if count == MAX {
+        Ok(())
+    }
+
+    // Visit all children of self, recusively and bail if we find a duplicate in the trace
+    fn component_child_cycle_check<'a>(
+        &self,
+        all: &'a AllComponents,
+        name_trace: &mut Vec<&'a str>,
+        id_trace: &mut Vec<TypeId>,
+    ) -> Result<()> {
+        // Unrealistic amount of tree branches
+        const MAX: usize = 1_000;
+
+        for child in &self.children {
+            let c = all.get(&child.id).unwrap();
+            name_trace.push(&c.name);
+
+            // Realistically, this should not happen,
+            // Cycles should have been caught before this,
+            // and nobody is crazy enough to create 1000 elements and link them all.
+            // .... right??
+            if name_trace.len() == MAX {
                 return Err(Error::new(
                     child.span,
-                    &format!("Component tree too deep ({}).", MAX),
+                    &format!(
+                        "Component tree too deep (trace[{}]: {:?}).",
+                        name_trace.len(),
+                        name_trace
+                    ),
                 ));
             }
-            if origin == child.type_id {
-                return Err(Error::new(child.span, "Component Child Cycle Detected!"));
+
+            for tid in id_trace.iter() {
+                if *tid == child.id {
+                    return Err(Error::new(
+                        child.span,
+                        &format!("Component Cycle Detected! (trace: {:?})", name_trace),
+                    ));
+                }
             }
 
-            let c = all.get(&child.type_id).unwrap();
-            c.component_child_cycle_check(origin, all, count + 1)?;
+            id_trace.push(c.id);
+            c.component_child_cycle_check(all, name_trace, id_trace)?;
         }
+        name_trace.pop();
+        id_trace.pop();
         Ok(())
     }
 }
@@ -125,8 +179,9 @@ impl From<parsing::component::ChildType> for ChildType {
     }
 }
 
+#[derive(Debug)]
 pub struct Child {
-    pub type_id: TypeId,
+    pub id: TypeId,
     pub child_type: ChildType,
     pub span: Span,
 }

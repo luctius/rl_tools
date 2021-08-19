@@ -25,6 +25,7 @@ mod kw {
     syn::custom_keyword!(tasklists);
 }
 
+#[derive(Debug)]
 pub struct ParseEcs {
     pub visibility: Visibility,
     pub name: Ident,

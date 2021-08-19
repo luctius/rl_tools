@@ -4,6 +4,7 @@ use syn::{
     Ident, Token, Type, Visibility,
 };
 
+#[derive(Debug)]
 pub struct Task {
     name: Ident,
     systems: Vec<Atom>,
@@ -38,6 +39,7 @@ mod kw {
     syn::custom_keyword!(after);
 }
 
+#[derive(Debug)]
 pub struct Atom {
     after: Option<Type>,
     system: Type,
@@ -54,6 +56,7 @@ impl Parse for Atom {
 
             let lookahead = option_stream.lookahead1();
             if lookahead.peek(kw::after) {
+                option_stream.parse::<kw::after>()?;
                 option_stream.parse::<Token![=]>()?;
                 after = Some(option_stream.parse()?);
             }

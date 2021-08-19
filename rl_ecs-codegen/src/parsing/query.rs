@@ -2,13 +2,14 @@ use proc_macro2::Span;
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream, Result},
-    Ident, Token, Type, Visibility,
+    Ident, Token, TypePath, Visibility,
 };
 
+#[derive(Debug)]
 pub struct Query {
     cached: bool,
     name: Ident,
-    atoms: Vec<Atom>,
+    atoms: Vec<TypePath>,
 }
 impl Parse for Query {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -21,7 +22,7 @@ impl Parse for Query {
         braced!(query_stream in input);
 
         loop {
-            let atom: Atom = query_stream.parse()?;
+            let atom = query_stream.parse()?;
             atoms.push(atom);
 
             let r = query_stream.parse::<Token![,]>();
@@ -32,38 +33,10 @@ impl Parse for Query {
             }
         }
 
-        Ok(Self { cached: true, name, atoms, })
-    }
-}
-
-pub struct Atom {
-    pub r#type: Type,
-    pub children: Vec<Atom>,
-}
-impl Parse for Atom {
-    fn parse(input: ParseStream) -> Result<Self> {
-        let mut children = Vec::new();
-
-        let ty: Type = input.parse()?;
-        
-        if input.lookahead1().peek(Token![<]) {
-            input.parse::<Token![<]>()?;
-
-            loop {
-                let atom: Atom = input.parse()?;
-                children.push(atom);
-
-                if input.lookahead1().peek(Token![>]) {
-                    input.parse::<Token![>]>()?;
-                    break;
-                }
-                input.parse::<Token![,]>()?;
-            }
-        }
-
         Ok(Self {
-            r#type: ty,
-            children,
+            cached: true,
+            name,
+            atoms,
         })
     }
 }

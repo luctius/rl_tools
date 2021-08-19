@@ -18,10 +18,13 @@ pub mod task;
 
 use component::Component;
 
+pub type AllComponents = HashMap<TypeId, Component>;
+
+#[derive(Debug)]
 pub struct ValidatedEcs {
     pub visibility: Visibility,
     pub name: Ident,
-    pub components: HashMap<TypeId, Component>, //Note: we should probably be using a different hash algorithm?
+    pub components: AllComponents, //Note: we should probably be using a different hash algorithm?
     pub uniques: Vec<TypeId>,
 }
 

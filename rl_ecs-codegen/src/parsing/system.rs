@@ -2,14 +2,15 @@ use proc_macro2::Span;
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream, Result},
-    BareFnArg, Ident, LitInt, Token, Type, TypeBareFn,
+    BareFnArg, Ident, LitInt, Token, TypePath, Type, TypeBareFn,
 };
 
 use crate::TypeId;
 
+#[derive(Debug)]
 pub enum SystemType {
     ForEach,
-    Iterator { stores: Option<Vec<Type>> },
+    Iterator { stores: Option<Vec<TypePath>> },
 }
 impl Default for SystemType {
     fn default() -> Self {
@@ -17,8 +18,9 @@ impl Default for SystemType {
     }
 }
 
+#[derive(Debug)]
 pub struct System {
-    pub func: Type,
+    pub func: Ident,
     pub queries: Vec<Ident>,
     pub r#type: SystemType,
     pub state: Option<Type>,
@@ -83,6 +85,7 @@ mod kw {
     syn::custom_keyword!(for_each);
 }
 
+#[derive(Debug)]
 pub struct SystemOption {
     pub r#type: SystemType,
     pub state: Option<Type>,
