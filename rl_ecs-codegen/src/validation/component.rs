@@ -4,6 +4,7 @@ use std::{
     convert::TryFrom,
 };
 use syn::{spanned::Spanned, Error, Result, TypePath};
+use indexmap::IndexMap;
 
 use super::{AllComponents, TypeId};
 use crate::parsing;
@@ -20,7 +21,7 @@ impl Component {
     pub fn try_into_component_list(
         v: Vec<crate::parsing::component::Component>,
     ) -> Result<AllComponents> {
-        let mut list = HashMap::with_capacity(v.len());
+        let mut list = IndexMap::with_capacity(v.len());
         let mut duplicate_check_list = HashSet::with_capacity(v.len());
 
         // Find all the listed components
@@ -100,10 +101,7 @@ impl Component {
         for child in &self.children {
             let c = all.get(&child.id).unwrap();
             if c.unique {
-                let child_error = Error::new(
-                    child.span,
-                    "uniques cannot be used as children.",
-                );
+                let child_error = Error::new(child.span, "uniques cannot be used as children.");
                 let mut comp_error = Error::new(
                     self.r#type.span(),
                     "regular components cannot use a unique as child.",

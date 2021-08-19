@@ -18,67 +18,63 @@ impl From<ValidatedEcs> for TokenStream {
         let vis = &ecs.visibility;
         let span = ecs.name.span();
         let name = &ecs.name;
-        let lname = format_ident!("{}", name.to_string().to_lowercase(), span = span);
-        let keyname = ecs.key_name();
+        let mod_name = format_ident!("{}", name.to_string().to_lowercase(), span = span);
 
-        let world_struct = ecs.to_world_struct();
+        let world_struct = ecs.gen_world_struct();
 
         let mut component_imports = Vec::new();
         ecs.components
             .values()
-            .for_each(|c| component_imports.push(c.to_imports()));
+            .for_each(|c| component_imports.push(c.gen_imports()));
 
         let mut store_atoms = Vec::new();
         ecs.components
             .values()
-            .for_each(|c| store_atoms.push(c.to_store_atom(&ecs.components)));
+            .for_each(|c| store_atoms.push(c.gen_store_atom(&ecs.components)));
 
         quote_spanned! {span =>
-            pub mod #lname {
-                use rl_ecs::{slotmap::new_key_type, stores::Store};
+            pub mod #mod_name {
+                use rl_ecs::{stores::Store};
 
                 #(#component_imports)*
-
-                new_key_type! { pub struct #keyname; }
-
-                mod stores {
+            
+                mod components {
+                    use rl_ecs::{slotmap::new_key_type, stores::Store};
                     #(#component_imports)*
-
                     #(#store_atoms)*
                 }
-                use stores::*;
+                pub use components::*;
 
                 #world_struct
             }
-            #vis use #lname::#name;
+            #vis use #mod_name::#name;
         }
     }
 }
 
 trait CodeGenEcsExt {
-    fn to_world_struct(&self) -> TokenStream;
-    fn key_name(&self) -> Ident;
+    fn gen_world_struct(&self) -> TokenStream;
 }
 
 impl CodeGenEcsExt for ValidatedEcs {
-    fn to_world_struct(&self) -> TokenStream {
+    fn gen_world_struct(&self) -> TokenStream {
         let name = &self.name;
         let span = self.name.span();
 
         let mut component_stores = Vec::new();
         self.components
             .values()
-            .for_each(|c| component_stores.push(c.to_store(self.key_name())));
+            .for_each(|c| component_stores.push(c.gen_store()));
 
         let mut components_new = Vec::new();
         self.components
             .values()
-            .for_each(|c| components_new.push(c.to_new()));
+            .for_each(|c| components_new.push(c.gen_new()));
 
         let mut unique_arguments = Vec::new();
         self.components
             .values()
-            .for_each(|c| unique_arguments.push(c.to_unique_new_argument()));
+            .for_each(|c| unique_arguments.push(c.gen_unique_new_argument()));
 
         quote_spanned! {span =>
             pub struct #name {
@@ -92,9 +88,5 @@ impl CodeGenEcsExt for ValidatedEcs {
                 }
             }
         }
-    }
-    fn key_name(&self) -> Ident {
-        let name = &self.name;
-        format_ident!("{}Key", name)
     }
 }

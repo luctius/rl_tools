@@ -1,3 +1,4 @@
+use indexmap::IndexMap;
 use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
@@ -8,8 +9,8 @@ use syn::{
     Error, Ident, Token, Type, Visibility,
 };
 
-use crate::TypeId;
 use crate::parsing::{component as parsing_component, ParseEcs};
+use crate::TypeId;
 
 pub mod component;
 pub mod query;
@@ -18,7 +19,7 @@ pub mod task;
 
 use component::Component;
 
-pub type AllComponents = HashMap<TypeId, Component>;
+pub type AllComponents = IndexMap<TypeId, Component>;
 
 #[derive(Debug)]
 pub struct ValidatedEcs {

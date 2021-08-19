@@ -54,6 +54,6 @@ pub trait Query<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>, ECS, T>: 
 }
 
 pub trait ResourceStore<T> {
-    fn get_resource(&self) -> &T;
-    fn get_resource_mut(&mut self) -> &mut T;
+    fn get_unique(&self) -> &T;
+    fn get_unique_mut(&mut self) -> &mut T;
 }

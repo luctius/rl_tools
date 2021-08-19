@@ -2,7 +2,7 @@ use proc_macro2::Span;
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream, Result},
-    BareFnArg, Ident, LitInt, Token, TypePath, Type, TypeBareFn,
+    BareFnArg, Ident, LitInt, Token, Type, TypeBareFn, TypePath,
 };
 
 use crate::TypeId;
@@ -83,26 +83,40 @@ mod kw {
     syn::custom_keyword!(stores);
     syn::custom_keyword!(state);
     syn::custom_keyword!(for_each);
+    syn::custom_keyword!(weight);
+    syn::custom_keyword!(low);
+    syn::custom_keyword!(medium);
+    syn::custom_keyword!(high);
+}
+
+#[derive(Debug, Copy, Clone)]
+pub enum Weight {
+    Low,
+    Medium,
+    High,
 }
 
 #[derive(Debug)]
 pub struct SystemOption {
     pub r#type: SystemType,
     pub state: Option<Type>,
+    pub weight: Weight,
 }
 impl Parse for SystemOption {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut stores = Vec::new();
         let mut r#type = SystemType::default();
         let mut state = None;
+        let mut weight = Weight::Medium;
 
         if input.lookahead1().peek(Token![#]) {
             input.parse::<Token![#]>()?;
             let option_stream;
             bracketed!(option_stream in input);
-            
+
             let mut has_store = false;
             let mut has_state = false;
+            let mut has_weight = false;
             let mut has_for_each = false;
 
             loop {
@@ -110,7 +124,7 @@ impl Parse for SystemOption {
                 if !has_store && !has_for_each && lookahead.peek(kw::stores) {
                     option_stream.parse::<kw::stores>()?;
                     option_stream.parse::<Token![=]>()?;
-                    
+
                     let stores_stream;
                     bracketed!(stores_stream in option_stream);
 
@@ -128,6 +142,27 @@ impl Parse for SystemOption {
                     option_stream.parse::<Token![:]>()?;
                     state = Some(option_stream.parse()?);
                     has_state = true;
+                } else if !has_weight && lookahead.peek(kw::weight) {
+                    option_stream.parse::<kw::weight>()?;
+                    option_stream.parse::<Token![=]>()?;
+
+                    let lookahead = option_stream.lookahead1();
+                    if lookahead.peek(kw::low) {
+                        option_stream.parse::<kw::low>()?;
+                        weight = Weight::Low;
+                    }
+                    else if lookahead.peek(kw::medium) {
+                        option_stream.parse::<kw::medium>()?;
+                        weight = Weight::Medium;
+                    }
+                    else if lookahead.peek(kw::high) {
+                        option_stream.parse::<kw::high>()?;
+                        weight = Weight::High;
+                    } else {
+                        return Err(lookahead.error());
+                    }
+
+                    has_weight = true;
                 } else if !has_for_each && !has_store && lookahead.peek(kw::for_each) {
                     option_stream.parse::<kw::for_each>()?;
                     r#type = SystemType::ForEach;
@@ -140,6 +175,10 @@ impl Parse for SystemOption {
                 option_stream.parse::<Token![,]>()?;
             }
         }
-        Ok(Self { r#type, state })
+        Ok(Self {
+            r#type,
+            state,
+            weight,
+        })
     }
 }

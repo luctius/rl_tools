@@ -24,14 +24,14 @@ struct Movable {}
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
 struct ToolUser {}
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct Timer {}
+pub struct Timer {}
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct Player {}
+pub struct Player {}
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct Time {}
+pub struct Time {}
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
-struct Counter {
-    ctr: usize,
+pub struct Counter {
+    pub ctr: usize,
 }
 
 create_ecs! {
@@ -60,7 +60,7 @@ create_ecs! {
             TilePos: { Tile<Location,Inventory<Item>> },
         },
         systems: {
-            #[for_each, state: u32]
+            #[for_each, state: u32, weight = low]
             single = { &mut Timer },
             #[stores = [Inventory, Item]]
             pickup_item: <TransferItem, TilePos> = { &mut Inventory, &mut Item, &Location, &mut Action, &Counter},
@@ -176,7 +176,7 @@ mod tests {
 
     #[test]
     fn it_works() {
-        // let mut ecs = Ecs::new(0, 0);
+        let mut ecs = Ecs::new(Player {}, Time {}, Counter { ctr: 0});
 
         // let p1 = ecs.create(Position {});
         // let v1 = ecs.create_and_attach(p1, Velocity {}).unwrap();
