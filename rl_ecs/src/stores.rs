@@ -1,4 +1,4 @@
-use crate::{id::Id, Error};
+use crate::{key::KeyExt, Error};
 use serde::{Deserialize, Serialize};
 use slotmap::{basic::Iter, SecondaryMap, SlotMap};
 
@@ -12,46 +12,89 @@ pub struct Store<T, CIDT, KEY>
     pub id:  SecondaryMap<KEY, CIDT>,
 }
 impl<T, CIDT, KEY> Store<T, CIDT, KEY> where KEY: Key, {
+    #[must_use]
     pub fn new() -> Self { Self { bin: SlotMap::with_key(), id: SecondaryMap::new(), } }
 }
 impl<T, CIDT, KEY> Default for Store<T, CIDT, KEY> where KEY: Key, {
     fn default() -> Self { Self::new() }
 }
 
-pub trait Ecs<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>> {
-    fn attach(&mut self, parent: ID, child: ID) -> Result<(), Error>;
-    fn detach(&mut self, parent: ID, child: ID) -> Result<(), Error>;
-    fn purge(&mut self, k: ID) -> Result<(), Error>;
-    fn get_parent(&self, child: ID) -> Result<Option<ID>, Error>;
+pub trait StoreExGetParent<KEY, PKEY>
+    where KEY: Key + KeyExt,
+          PKEY: Key + KeyExt, {
+    fn get_parent(&self, child: KEY) -> Option<PKEY>;
+    fn set_parent(&mut self, child: KEY, parent: PKEY) -> bool;
+    fn clear_parent(&mut self, child: KEY) -> bool;
 }
 
-pub trait StoreEx<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>> {
-    fn attach(&mut self, parent: ID, child: ID) -> Result<(), Error>;
-    fn detach(&mut self, parent: ID, child: ID) -> Result<(), Error>;
-    fn get_parent(&self, child: ID) -> Result<Option<ID>, Error>;
-    fn get_child(&self, parent: ID, child_type: KEYTYPE) -> Result<Option<ID>, Error>;
-    fn get_children(&self, parent: ID) -> Result<Vec<ID>, Error>;
-    fn remove(&mut self, key: ID) -> Result<(), Error>;
+pub trait StoreExGetChild<KEY, CKEY>
+    where KEY: Key + KeyExt,
+          CKEY: Key + KeyExt, {
+    fn get_child(&self, parent: KEY) -> Option<std::slice::Iter<CKEY>>;
+    fn set_child(&mut self, parent: KEY, child: CKEY) -> bool;
+    fn clear_child(&mut self, parent: KEY, child: CKEY) -> bool;
 }
 
-pub trait RlEcsStore<ID, KEYTYPE, T, KEY>
-    where ID: Id<Idx = KEY, Type = KEYTYPE>,
-          KEY: Key, {
-    fn create(&mut self, t: T) -> KEY;
-    fn create_and_attach(&mut self, parent: KEY, t: T) -> Result<KEY, Error>;
-    fn get(&self, k: KEY) -> Result<Option<&T>, Error>;
-    fn get_mut(&mut self, k: KEY) -> Result<Option<&mut T>, Error>;
+pub trait StoreExBasic<T, KEY> {
+    fn get(&self, k: KEY) -> Option<&T>;
+    fn get_mut(&mut self, k: KEY) -> Option<&mut T>;
     fn is_empty(&self) -> bool;
 }
 
-pub trait Query<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>, ECS, T>: Iterator<Item = T>
-    where ECS: Ecs<KEYTYPE, KEYIDX, ID>, {
-    fn purge_all(ecs: &mut ECS);
-    fn purge_some<FUNC>(ecs: &mut ECS, func: FUNC)
-        where FUNC: FnMut(T) -> bool;
-    fn run<FUNC>(ecs: &mut ECS, func: FUNC)
-        where FUNC: FnMut(T);
+pub trait StoreExCreate<T, KEY>
+    where KEY: Key, {
+    fn create(&mut self, t: T) -> KEY;
+    fn remove(&mut self, key: KEY);
 }
+
+pub trait StoreExAttach<PKEY, CKEY>
+    where PKEY: Key + KeyExt,
+          CKEY: Key + KeyExt, {
+    fn attach(&mut self, pkey: PKEY, ckey: CKEY) -> bool;
+    fn detach(&mut self, pkey: PKEY, ckey: CKEY) -> bool;
+}
+impl<PKEY, CKEY, S> StoreExAttach<PKEY, CKEY> for S
+    where S: StoreExGetChild<PKEY, CKEY> + StoreExGetParent<CKEY, PKEY>,
+          PKEY: Key + KeyExt,
+          CKEY: Key + KeyExt,
+{
+    fn attach(&mut self, pkey: PKEY, ckey: CKEY) -> bool { self.set_parent(ckey, pkey) && self.set_child(pkey, ckey) }
+
+    fn detach(&mut self, pkey: PKEY, ckey: CKEY) -> bool { self.clear_parent(ckey) && self.clear_child(pkey, ckey) }
+}
+
+pub trait StoreExCreateAttach<T, PKEY, CKEY>
+    where PKEY: Key + KeyExt,
+          CKEY: Key + KeyExt, {
+    fn create_and_attach(&mut self, parent: PKEY, item: T) -> Option<CKEY>;
+}
+impl<T, PKEY, CKEY, S> StoreExCreateAttach<T, PKEY, CKEY> for S
+    where S: StoreExCreate<T, CKEY>
+              + StoreExAttach<PKEY, CKEY>
+              + StoreExGetChild<PKEY, CKEY>
+              + StoreExGetParent<CKEY, PKEY>,
+          PKEY: Key + KeyExt,
+          CKEY: Key + KeyExt,
+{
+    fn create_and_attach(&mut self, parent: PKEY, item: T) -> Option<CKEY> {
+        let key: CKEY = self.create(item);
+        self.attach(parent, key).then(|| key)
+    }
+}
+
+pub trait StoreExPurge<KEY>
+    where KEY: Key, {
+    fn purge(&mut self, key: KEY) -> Result<(), Error>;
+}
+
+// pub trait Query<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>, ECS,
+// T>: Iterator<Item = T>     where ECS: Ecs<KEYTYPE, KEYIDX, ID>, {
+//     fn purge_all(ecs: &mut ECS);
+//     fn purge_some<FUNC>(ecs: &mut ECS, func: FUNC)
+//         where FUNC: FnMut(T) -> bool;
+//     fn run<FUNC>(ecs: &mut ECS, func: FUNC)
+//         where FUNC: FnMut(T);
+// }
 
 pub trait ResourceStore<T> {
     fn get_unique(&self) -> &T;

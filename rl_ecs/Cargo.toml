@@ -14,8 +14,10 @@ harness = false
 name = "simple"
 
 [dependencies]
+rl_ecs-codegen = { version = "*", path = "../rl_ecs-codegen"}
 serde = { version = "1.0", features = ["derive"] }
 slotmap = { version = "1.0.2", features = ["serde"] }
+arrayvec = { version = "0.7.1" }
 
 [dev-dependencies]
 criterion = "^0.2"
