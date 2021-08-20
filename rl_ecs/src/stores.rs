@@ -1,4 +1,4 @@
-use crate::{key::KeyExt, Error};
+use crate::key::KeyExt;
 use serde::{Deserialize, Serialize};
 use slotmap::{basic::Iter, SecondaryMap, SlotMap};
 
@@ -84,7 +84,7 @@ impl<T, PKEY, CKEY, S> StoreExCreateAttach<T, PKEY, CKEY> for S
 
 pub trait StoreExPurge<KEY>
     where KEY: Key, {
-    fn purge(&mut self, key: KEY) -> Result<(), Error>;
+    fn purge(&mut self, key: KEY) -> Option<()>;
 }
 
 // pub trait Query<KEYTYPE, KEYIDX, ID: Id<Type = KEYTYPE, Idx = KEYIDX>, ECS,
