@@ -1,10 +1,10 @@
+use indexmap::IndexMap;
 use proc_macro2::Span;
 use std::{
     collections::{HashMap, HashSet},
     convert::TryFrom,
 };
 use syn::{spanned::Spanned, Error, Result, TypePath};
-use indexmap::IndexMap;
 
 use super::{AllComponents, TypeId};
 use crate::parsing;
@@ -15,7 +15,6 @@ pub struct Component {
     pub name: String,
     pub r#type: TypePath,
     pub children: Vec<Child>,
-    pub unique: bool,
 }
 impl Component {
     pub fn try_into_component_list(
@@ -43,7 +42,6 @@ impl Component {
                     id,
                     r#type: c.r#type.clone(),
                     children,
-                    unique: c.unique,
                     name,
                 },
             );
@@ -62,6 +60,9 @@ impl Component {
                     }
                 };
                 let child_type = child.child_type.into();
+                if let ChildType::Array(sz) = child_type {
+                    //TODO: validate Array Size
+                }
 
                 list.get_mut(&comp.id.unwrap())
                     .as_mut()
@@ -73,10 +74,6 @@ impl Component {
                         span: child.r#type.span(),
                     });
             }
-        }
-
-        for c in list.values() {
-            c.component_child_uiques_check(&list)?;
         }
 
         // Check for component -> child cycle
@@ -95,23 +92,6 @@ impl Component {
     pub fn search_component(typ: &TypePath, list: &AllComponents) -> Option<TypeId> {
         list.iter()
             .find_map(|(k, v)| (*typ == v.r#type).then(|| *k))
-    }
-
-    fn component_child_uiques_check(&self, all: &AllComponents) -> Result<()> {
-        for child in &self.children {
-            let c = all.get(&child.id).unwrap();
-            if c.unique {
-                let child_error = Error::new(child.span, "uniques cannot be used as children.");
-                let mut comp_error = Error::new(
-                    self.r#type.span(),
-                    "regular components cannot use a unique as child.",
-                );
-                comp_error.combine(child_error);
-                return Err(comp_error);
-            }
-        }
-
-        Ok(())
     }
 
     // Visit all children of self, recusively and bail if we find a duplicate in the trace
@@ -163,14 +143,12 @@ impl Component {
 
 #[derive(Copy, Clone, Debug)]
 pub enum ChildType {
-    Single,
     Array(usize),
     Vec,
 }
 impl From<parsing::component::ChildType> for ChildType {
     fn from(ct: parsing::component::ChildType) -> Self {
         match ct {
-            parsing::component::ChildType::Single => ChildType::Single,
             parsing::component::ChildType::Array(sz) => ChildType::Array(sz),
             parsing::component::ChildType::Vec => ChildType::Vec,
         }

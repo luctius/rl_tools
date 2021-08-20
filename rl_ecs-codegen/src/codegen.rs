@@ -22,26 +22,46 @@ impl From<ValidatedEcs> for TokenStream {
 
         let world_struct = ecs.gen_world_struct();
 
-        let mut component_imports = Vec::new();
+        let mut component_imports = Vec::with_capacity(ecs.components.len());
         ecs.components
             .values()
             .for_each(|c| component_imports.push(c.gen_imports()));
 
-        let mut store_atoms = Vec::new();
+        let mut store_atoms = Vec::with_capacity(ecs.components.len());
         ecs.components
             .values()
             .for_each(|c| store_atoms.push(c.gen_store_atom(&ecs.components)));
 
+        let mut keys = Vec::with_capacity(ecs.components.len());
+        ecs.components.values().for_each(|c| keys.push(c.gen_key()));
+
+        let mut ecs_impls = Vec::with_capacity(ecs.components.len());
+        ecs.components
+            .values()
+            .for_each(|c| ecs_impls.push(c.gen_ecs_impl(name, &ecs.components)));
+
         quote_spanned! {span =>
             pub mod #mod_name {
-                use rl_ecs::{stores::Store};
+                use rl_ecs::key::KeyExt;
+                use rl_ecs::stores::{StoreExBasic, StoreExCreate,StoreExGetParent,StoreExGetChild};
+                use components::InventoryKey;
 
                 #(#component_imports)*
-            
+
                 mod components {
-                    use rl_ecs::{slotmap::new_key_type, stores::Store};
+                    use core::convert::{TryFrom, TryInto};
+                    use rl_ecs::key::KeyExt;
+                    use rl_ecs::stores::Store;
+                    use rl_ecs::stores::{StoreExBasic, StoreExCreate,StoreExGetParent,StoreExGetChild};
+                    use rl_ecs::slotmap::{new_key_type, Key, KeyData};
+                    use rl_ecs::arrayvec::{ArrayVec};
+
+                    #(#keys)*
+
                     #(#component_imports)*
                     #(#store_atoms)*
+
+                    #(#ecs_impls)*
                 }
                 pub use components::*;
 
@@ -71,17 +91,13 @@ impl CodeGenEcsExt for ValidatedEcs {
             .values()
             .for_each(|c| components_new.push(c.gen_new()));
 
-        let mut unique_arguments = Vec::new();
-        self.components
-            .values()
-            .for_each(|c| unique_arguments.push(c.gen_unique_new_argument()));
-
         quote_spanned! {span =>
             pub struct #name {
                 #(#component_stores)*
             }
             impl #name {
-                pub fn new(#(#unique_arguments)*) -> Self {
+                #[must_use]
+                pub fn new() -> Self {
                     Self {
                         #(#components_new)*
                     }

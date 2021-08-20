@@ -12,7 +12,6 @@ pub struct Component {
     pub id: Option<TypeId>,
     pub r#type: TypePath,
     pub children: Vec<Child>,
-    pub unique: bool,
 }
 impl Parse for Component {
     fn parse(input: ParseStream) -> Result<Self> {
@@ -40,14 +39,12 @@ impl Parse for Component {
             id: None,
             r#type: ty,
             children,
-            unique: false,
         })
     }
 }
 
 #[derive(Copy, Clone, Debug)]
 pub enum ChildType {
-    Single,
     Array(usize),
     Vec,
 }
@@ -62,7 +59,7 @@ impl Parse for Child {
         if let Ok(ty) = input.parse() {
             Ok(Self {
                 r#type: ty,
-                child_type: ChildType::Single,
+                child_type: ChildType::Array(1),
             })
         } else {
             let child;

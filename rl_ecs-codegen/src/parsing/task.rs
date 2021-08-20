@@ -47,10 +47,10 @@ pub struct Atom {
 impl Parse for Atom {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut after = None;
-        
+
         if input.lookahead1().peek(Token![#]) {
             input.parse::<Token![#]>()?;
-            
+
             let option_stream;
             bracketed!(option_stream in input);
 
@@ -63,9 +63,6 @@ impl Parse for Atom {
         }
 
         let system = input.parse()?;
-        Ok(Self {
-            after,
-            system,
-        })
+        Ok(Self { after, system })
     }
 }

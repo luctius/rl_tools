@@ -10,11 +10,17 @@ use crate::TypeId;
 #[derive(Debug)]
 pub enum SystemType {
     ForEach,
-    Iterator { stores: Option<Vec<TypePath>> },
+    Iterator {
+        add_stores: Option<Vec<TypePath>>,
+        remove_stores: Option<Vec<TypePath>>,
+    },
 }
 impl Default for SystemType {
     fn default() -> Self {
-        SystemType::Iterator { stores: None }
+        SystemType::Iterator {
+            add_stores: None,
+            remove_stores: None,
+        }
     }
 }
 
@@ -25,17 +31,18 @@ pub struct System {
     pub r#type: SystemType,
     pub state: Option<Type>,
     pub args: Vec<BareFnArg>,
+    pub weight: Weight,
 }
 impl Parse for System {
     fn parse(input: ParseStream) -> Result<Self> {
         let mut queries = Vec::new();
         let mut args = Vec::new();
 
-        let (r#type, state) = if let Ok(options) = input.parse::<SystemOption>() {
-            (options.r#type, options.state)
-        } else {
-            (SystemType::default(), None)
-        };
+        let SystemOption {
+            r#type,
+            state,
+            weight,
+        } = input.parse::<SystemOption>()?;
         let func = input.parse()?;
 
         if input.lookahead1().peek(Token![:]) {
@@ -75,12 +82,14 @@ impl Parse for System {
             state,
             queries,
             args,
+            weight,
         })
     }
 }
 
 mod kw {
-    syn::custom_keyword!(stores);
+    syn::custom_keyword!(add_stores);
+    syn::custom_keyword!(remove_stores);
     syn::custom_keyword!(state);
     syn::custom_keyword!(for_each);
     syn::custom_keyword!(weight);
@@ -104,7 +113,8 @@ pub struct SystemOption {
 }
 impl Parse for SystemOption {
     fn parse(input: ParseStream) -> Result<Self> {
-        let mut stores = Vec::new();
+        let mut add_stores = None;
+        let mut remove_stores = None;
         let mut r#type = SystemType::default();
         let mut state = None;
         let mut weight = Weight::Medium;
@@ -114,29 +124,50 @@ impl Parse for SystemOption {
             let option_stream;
             bracketed!(option_stream in input);
 
-            let mut has_store = false;
+            let mut has_add_store = false;
+            let mut has_remove_store = false;
             let mut has_state = false;
             let mut has_weight = false;
             let mut has_for_each = false;
 
             loop {
                 let lookahead = option_stream.lookahead1();
-                if !has_store && !has_for_each && lookahead.peek(kw::stores) {
-                    option_stream.parse::<kw::stores>()?;
+                if !has_add_store && !has_for_each && lookahead.peek(kw::add_stores) {
+                    let mut stores = Vec::new();
+                    option_stream.parse::<kw::add_stores>()?;
                     option_stream.parse::<Token![=]>()?;
 
-                    let stores_stream;
-                    bracketed!(stores_stream in option_stream);
+                    let add_stores_stream;
+                    bracketed!(add_stores_stream in option_stream);
 
                     loop {
-                        let store: Type = stores_stream.parse()?;
+                        let store: TypePath = add_stores_stream.parse()?;
                         stores.push(store);
-                        if stores_stream.is_empty() {
+                        if add_stores_stream.is_empty() {
                             break;
                         }
-                        stores_stream.parse::<Token![,]>()?;
+                        add_stores_stream.parse::<Token![,]>()?;
                     }
-                    has_store = true;
+                    add_stores = Some(stores);
+                    has_add_store = true;
+                } else if !has_remove_store && !has_for_each && lookahead.peek(kw::remove_stores) {
+                    let mut stores = Vec::new();
+                    option_stream.parse::<kw::remove_stores>()?;
+                    option_stream.parse::<Token![=]>()?;
+
+                    let remove_stores_stream;
+                    bracketed!(remove_stores_stream in option_stream);
+
+                    loop {
+                        let store: TypePath = remove_stores_stream.parse()?;
+                        stores.push(store);
+                        if remove_stores_stream.is_empty() {
+                            break;
+                        }
+                        remove_stores_stream.parse::<Token![,]>()?;
+                    }
+                    remove_stores = Some(stores);
+                    has_remove_store = true;
                 } else if !has_state && lookahead.peek(kw::state) {
                     option_stream.parse::<kw::state>()?;
                     option_stream.parse::<Token![:]>()?;
@@ -150,12 +181,10 @@ impl Parse for SystemOption {
                     if lookahead.peek(kw::low) {
                         option_stream.parse::<kw::low>()?;
                         weight = Weight::Low;
-                    }
-                    else if lookahead.peek(kw::medium) {
+                    } else if lookahead.peek(kw::medium) {
                         option_stream.parse::<kw::medium>()?;
                         weight = Weight::Medium;
-                    }
-                    else if lookahead.peek(kw::high) {
+                    } else if lookahead.peek(kw::high) {
                         option_stream.parse::<kw::high>()?;
                         weight = Weight::High;
                     } else {
@@ -163,7 +192,10 @@ impl Parse for SystemOption {
                     }
 
                     has_weight = true;
-                } else if !has_for_each && !has_store && lookahead.peek(kw::for_each) {
+                } else if !has_for_each
+                    && !(has_add_store || has_remove_store)
+                    && lookahead.peek(kw::for_each)
+                {
                     option_stream.parse::<kw::for_each>()?;
                     r#type = SystemType::ForEach;
                     has_for_each = true;
@@ -172,9 +204,23 @@ impl Parse for SystemOption {
                 } else {
                     return Err(lookahead.error());
                 }
-                option_stream.parse::<Token![,]>()?;
+
+                let r = option_stream.parse::<Token![,]>();
+                if option_stream.is_empty() {
+                    break;
+                } else if let Err(e) = r {
+                    return Err(e);
+                }
+            }
+
+            if has_add_store || has_remove_store {
+                r#type = SystemType::Iterator {
+                    add_stores,
+                    remove_stores,
+                };
             }
         }
+
         Ok(Self {
             r#type,
             state,

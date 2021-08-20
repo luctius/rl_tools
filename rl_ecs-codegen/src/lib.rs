@@ -10,9 +10,9 @@ use std::convert::TryFrom;
 
 pub(crate) type TypeId = usize;
 
+mod codegen;
 mod parsing;
 mod validation;
-mod codegen;
 
 use parsing::ParseEcs;
 use validation::ValidatedEcs;
@@ -21,7 +21,7 @@ use validation::ValidatedEcs;
 pub fn create_ecs(input: TokenStream) -> TokenStream {
     let pecs = parse_macro_input!(input as ParseEcs);
     // dbg!(&pecs);
-    
+
     let ecs = match ValidatedEcs::try_from(pecs) {
         Ok(ecs) => ecs,
         Err(error) => return error.to_compile_error().into(),

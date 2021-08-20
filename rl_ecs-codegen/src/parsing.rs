@@ -10,11 +10,13 @@ pub mod component;
 pub mod query;
 pub mod system;
 pub mod task;
+pub mod unique;
 
 use component::Component;
 use query::Query;
 use system::System;
 use task::Task;
+use unique::Unique;
 
 mod kw {
     syn::custom_keyword!(world);
@@ -30,7 +32,7 @@ pub struct ParseEcs {
     pub visibility: Visibility,
     pub name: Ident,
     pub components: Vec<Component>,
-    pub uniques: Vec<TypeId>,
+    pub uniques: Vec<Unique>,
     pub queries: Vec<Query>,
     pub systems: Vec<System>,
     pub tasks: Vec<Task>,
@@ -79,20 +81,18 @@ impl Parse for ParseEcs {
         if ecs.lookahead1().peek(kw::uniques) {
             ecs.parse::<kw::uniques>()?;
             ecs.parse::<Token![:]>()?;
-            let component_stream;
-            braced!(component_stream in ecs);
+            let unique_stream;
+            braced!(unique_stream in ecs);
 
             loop {
-                let mut comp: Component = component_stream.parse()?;
+                let mut comp: Unique = unique_stream.parse()?;
                 comp.id = Some(comp_counter);
-                comp.unique = true;
-                uniques.push(comp_counter);
-                components.push(comp);
+                uniques.push(comp);
 
                 comp_counter += 1;
 
-                let r = component_stream.parse::<Token![,]>();
-                if component_stream.is_empty() {
+                let r = unique_stream.parse::<Token![,]>();
+                if unique_stream.is_empty() {
                     break;
                 } else if let Err(e) = r {
                     return Err(e);
@@ -116,7 +116,7 @@ impl Parse for ParseEcs {
             loop {
                 let query: Query = query_stream.parse()?;
                 queries.push(query);
-                
+
                 let r = query_stream.parse::<Token![,]>();
                 if query_stream.is_empty() {
                     break;
@@ -141,7 +141,7 @@ impl Parse for ParseEcs {
             loop {
                 let system: System = system_stream.parse()?;
                 systems.push(system);
-                
+
                 let r = system_stream.parse::<Token![,]>();
                 if system_stream.is_empty() {
                     break;

@@ -1,4 +1,4 @@
-use rl_ecs_codegen::create_ecs;
+use rl_ecs::create_ecs;
 use serde::{Deserialize, Serialize};
 
 #[derive(Copy, Clone, Debug, Serialize, Deserialize)]
@@ -62,7 +62,7 @@ create_ecs! {
         systems: {
             #[for_each, state: u32, weight = low]
             single = { &mut Timer },
-            #[stores = [Inventory, Item]]
+            #[add_stores = [Inventory, Item]]
             pickup_item: <TransferItem, TilePos> = { &mut Inventory, &mut Item, &Location, &mut Action, &Counter},
         },
         tasklists: {
@@ -145,12 +145,13 @@ create_ecs! {
             systems: {
                 #[for_each, state: u32]
                 single: = { &mut Timer };
-                #[stores = [Inventory, Item]]
+                #[add_stores = [Inventory, Item]]
                 pickup_item: <TransferItem, TilePos> = { &mut Inventory, &mut Item, &Location, &mut Action, &Counter},
 
                 // Check that atleast one store is requested per query used.
                 // Check for duplicates
                 // for_each systems may have either 0 queries and 1 store, or 1 query and X stores whith all non-unique stores matching that of the query.
+                // Check that uniques are not listed in remove_stores
             },
 
             tasklists = {
@@ -172,20 +173,23 @@ create_ecs! {
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use rl_ecs::stores::{ResourceStore, RlEcsStore};
+    use rl_ecs::stores::ResourceStore;
+    use rl_ecs::stores::{StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent};
 
     #[test]
     fn it_works() {
-        let mut ecs = Ecs::new(Player {}, Time {}, Counter { ctr: 0});
+        let mut ecs = Ecs::new();
+        // let mut ecs = Ecs::new(Player {}, Time {}, Counter { ctr: 0 });
 
-        // let p1 = ecs.create(Position {});
-        // let v1 = ecs.create_and_attach(p1, Velocity {}).unwrap();
-        // let m1 = ecs.create_and_attach(p1, Movement {}).unwrap();
+        let c1 = ecs.create(Creature {});
+        let c1_s = ecs.get(c1).unwrap();
+        let s1 = ecs.create_and_attach(c1, Stats {}).unwrap();
+        let l1 = ecs.create_and_attach(c1, Location {}).unwrap();
 
-        // let v1_parent = ecs.get_parent(v1).unwrap().unwrap();
-        // let m1_parent = ecs.get_parent(m1).unwrap().unwrap();
-        // assert_eq!(p1, v1_parent);
-        // assert_eq!(p1, m1_parent);
+        let l1_parent = ecs.get_parent(l1).unwrap();
+        let s1_parent = ecs.get_parent(s1).unwrap();
+        assert_eq!(c1, l1_parent);
+        assert_eq!(c1, s1_parent);
 
         // let t: Option<&Movement> = ecs.get(m1).unwrap();
         // assert!(t.is_some());
