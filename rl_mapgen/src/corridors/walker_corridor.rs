@@ -12,15 +12,11 @@ pub fn walker_corridor(mut start: Coord, mut end: Coord) -> Vec<Coord> {
 
     if start.x != end.x && start.y != end.y {
         let (middle1, middle2) = if delta_abs.x > delta_abs.y {
-            (
-                Coord::new(start.x + (end.delta(start).x / 2), start.y),
-                Coord::new(end.x + (start.delta(end).x / 2), end.y),
-            )
+            (Coord::new(start.x + (end.delta(start).x / 2), start.y),
+             Coord::new(end.x + (start.delta(end).x / 2), end.y))
         } else {
-            (
-                Coord::new(start.x, start.y + (end.delta(start).y / 2)),
-                Coord::new(end.x, end.y + (start.delta(end).y / 2)),
-            )
+            (Coord::new(start.x, start.y + (end.delta(start).y / 2)),
+             Coord::new(end.x, end.y + (start.delta(end).y / 2)))
         };
 
         retvec.append(&mut walker_corridor(start, middle1));

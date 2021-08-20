@@ -10,11 +10,13 @@ use rl_utils::{Area, Coord};
 /// a Delaunay triangulation is generated, of with a percentage of the
 /// vertices are used to create corridors.
 use crate::corridors::{create_corridor, walker_corridor, CorridorFunction};
-use crate::dungeons::{Dungeon, DungeonBuilder, DungeonCombiner, DungeonConfigurer, DungeonParams, Room};
-use crate::utils::{
-    bsp_tree::{BspTree, NodeDir, Split},
-    dirs::Dir,
-    AreaGenerator, Tile,
+use crate::{
+    dungeons::{Dungeon, DungeonBuilder, DungeonCombiner, DungeonConfigurer, DungeonParams, Room},
+    utils::{
+        bsp_tree::{BspTree, NodeDir, Split},
+        dirs::Dir,
+        AreaGenerator, Tile,
+    },
 };
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
@@ -35,55 +37,46 @@ trait BspSplit {
     fn split(&self, dir: SplitDir, percentage: isize) -> (Area, Area);
 }
 impl BspSplit for Area {
-    /* Too tired to fix this abomination for now... */
+    // Too tired to fix this abomination for now...
     fn split(&self, dir: SplitDir, percentage: isize) -> (Area, Area) {
         assert!(percentage < 100);
 
         match dir {
             SplitDir::Horizontal => {
                 let yd = (self.size.y * percentage) / 100;
-                (
-                    Area { position: self.position, size: Coord { x: self.size.x, y: yd } },
-                    Area {
-                        position: Coord { x: self.position.x, y: self.position.y + yd },
-                        size: Coord { x: self.size.x, y: self.size.y - yd },
-                    },
-                )
-            }
+                (Area { position: self.position, size: Coord { x: self.size.x, y: yd, }, },
+                 Area { position: Coord { x: self.position.x, y: self.position.y + yd, },
+                        size:     Coord { x: self.size.x, y: self.size.y - yd, }, })
+            },
             SplitDir::Vertical => {
                 let xd = (self.size.x * percentage) / 100;
-                (
-                    Area { position: self.position, size: Coord { x: xd, y: self.size.y } },
-                    Area {
-                        position: Coord { x: self.position.x + xd, y: self.position.y },
-                        size: Coord { x: self.size.x - xd, y: self.size.y },
-                    },
-                )
-            }
+                (Area { position: self.position, size: Coord { x: xd, y: self.size.y, }, },
+                 Area { position: Coord { x: self.position.x + xd, y: self.position.y, },
+                        size:     Coord { x: self.size.x - xd, y: self.size.y, }, })
+            },
         }
     }
 }
 
 #[derive(PartialEq, Debug, Clone)]
 struct BspData {
-    pub area: Area,
+    pub area:       Area,
     pub build_area: Option<Area>,
-    pub room: Option<Dungeon>,
-    pub corridor: Option<Vec<Coord>>,
-    pub split_dir: Option<SplitDir>,
+    pub room:       Option<Dungeon>,
+    pub corridor:   Option<Vec<Coord>>,
+    pub split_dir:  Option<SplitDir>,
 }
 impl BspData {
     fn new(area: Area) -> BspData {
         BspData { area, build_area: None, room: None, split_dir: None, corridor: None }
     }
 
-    fn create_room(
-        &mut self,
-        seed: u64,
-        room_offset: (isize, isize),
-        room_size: (isize, isize),
-        max_ratio: f32,
-    ) -> bool {
+    fn create_room(&mut self,
+                   seed: u64,
+                   room_offset: (isize, isize),
+                   room_size: (isize, isize),
+                   max_ratio: f32)
+                   -> bool {
         if let Some(room_area) = self.area.generate_room(room_offset, room_size, max_ratio, seed) {
             self.build_area = Some(room_area);
             true
@@ -91,6 +84,7 @@ impl BspData {
             false
         }
     }
+
     fn can_build_room(&self, builder: &dyn DungeonBuilder) -> bool {
         if let Some(room_area) = self.build_area {
             room_area.size.x >= builder.minimum_size().x && room_area.size.y >= builder.minimum_size().y
@@ -98,6 +92,7 @@ impl BspData {
             false
         }
     }
+
     fn build_room(&mut self, builder: &dyn DungeonBuilder, seed: u64) -> bool {
         if let Some(room_area) = self.build_area {
             let params = DungeonParams { area: room_area, seed };
@@ -111,6 +106,7 @@ impl BspData {
 }
 impl Split for BspData {
     type Context = u64;
+
     fn split(&mut self, context: &Self::Context) -> Option<(Self, Self)> {
         let mut rng = SmallRng::seed_from_u64(*context);
         let perc = rng.gen_range(30, 70);
@@ -153,17 +149,15 @@ pub struct Bsp {
 }
 impl DungeonConfigurer for Bsp {
     fn new(size_x: isize, size_y: isize) -> Self {
-        Bsp {
-            params: DungeonParams::new(size_x, size_y),
-            default_builder: Box::new(Room::new(size_x, size_y)),
-            default_corridor: Box::new(walker_corridor),
-            builders: vec![],
-            depth: 5,
-            room_offset: (0, 30),
-            room_size: (90, 120),
-            extra_corridor_chance: 20,
-            max_ratio: 1.7,
-        }
+        Bsp { params: DungeonParams::new(size_x, size_y),
+              default_builder: Box::new(Room::new(size_x, size_y)),
+              default_corridor: Box::new(walker_corridor),
+              builders: vec![],
+              depth: 5,
+              room_offset: (0, 30),
+              room_size: (90, 120),
+              extra_corridor_chance: 20,
+              max_ratio: 1.7, }
     }
 
     fn with_rng_seed(mut self, seed: u64) -> Self {
@@ -181,18 +175,22 @@ impl Bsp {
         self.depth = depth;
         self
     }
+
     pub fn with_extra_corridor_chance(mut self, percentage: isize) -> Bsp {
         self.extra_corridor_chance = percentage.abs() % 140;
         self
     }
+
     pub fn with_room_offset(mut self, minimum: isize, maximum: isize) -> Bsp {
         self.room_offset = (minimum, maximum);
         self
     }
+
     pub fn with_room_size(mut self, minimum: isize, maximum: isize) -> Bsp {
         self.room_size = (minimum, maximum);
         self
     }
+
     pub fn with_maximum_room_size_ratio(mut self, max_ratio: f32) -> Bsp {
         self.max_ratio = max_ratio;
         self
@@ -238,17 +236,15 @@ impl Bsp {
 
     fn connect_leaf_rooms(&self, bsp: &mut BspTree<BspData>) {
         for node in bsp.iter(self.depth - 1).collect::<Vec<_>>() {
-            if let Some((dir1, dir2)) =
-                bsp.get_data(node).and_then(|d| d.split_dir.map(|d| d.get_directions() ) )
-            {
+            if let Some((dir1, dir2)) = bsp.get_data(node).and_then(|d| d.split_dir.map(|d| d.get_directions())) {
                 let ap1 = node.get_child(NodeDir::Left, &bsp).and_then(|child| {
-                    bsp.get_data_mut(child)
+                                                                 bsp.get_data_mut(child)
                         .and_then(|data| data.room.as_mut().and_then(|r| r.create_access_point(dir1)))
-                });
+                                                             });
                 let ap2 = node.get_child(NodeDir::Right, &bsp).and_then(|child| {
-                    bsp.get_data_mut(child)
+                                                                  bsp.get_data_mut(child)
                         .and_then(|data| data.room.as_mut().and_then(|r| r.create_access_point(dir2)))
-                });
+                                                              });
                 if let Some(a) = ap1 {
                     if let Some(b) = ap2 {
                         if let Some(data) = bsp.get_data_mut(node) {
@@ -259,11 +255,11 @@ impl Bsp {
             }
         }
     }
+
     fn connect_leaf_rooms_with_nephews(&self, bsp: &mut BspTree<BspData>) {
         for d in 0..self.depth - 1 {
             for node in bsp.iter(d).collect::<Vec<_>>() {
-                if let Some((dir1, dir2)) =
-                    bsp.get_data(node).and_then(|d| d.split_dir.map(|dir| dir.get_directions() ) )
+                if let Some((dir1, dir2)) = bsp.get_data(node).and_then(|d| d.split_dir.map(|dir| dir.get_directions()))
                 {
                     let child1_area = bsp.get_data(node.get_child(NodeDir::Left, &bsp).unwrap()).unwrap().area;
                     let child2_area = bsp.get_data(node.get_child(NodeDir::Right, &bsp).unwrap()).unwrap().area;
@@ -314,23 +310,19 @@ impl Bsp {
 }
 impl DungeonCombiner for Bsp {
     fn with_default_builder(mut self, builder: Box<dyn DungeonBuilder>) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.default_builder = builder;
         self
     }
+
     fn with_additional_builder(mut self, percentage: isize, builder: Box<dyn DungeonBuilder>) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.builders.push((percentage.abs(), builder));
         self
     }
+
     fn with_default_corridor(mut self, corridor: Box<CorridorFunction>) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.default_corridor = corridor;
         self
     }
@@ -339,31 +331,34 @@ impl DungeonBuilder for Bsp {
     fn minimum_size(&self) -> Coord {
         Coord::new(30, 30)
     }
+
     fn get_params(&self) -> DungeonParams {
         self.params
     }
+
     fn get_name(&self) -> String {
         "Bsp".to_string()
     }
+
     fn generate_with_params(&self, params: DungeonParams) -> Dungeon {
         let mut rng = SmallRng::seed_from_u64(params.seed);
         let mut output = Dungeon::new(self.get_name(), params);
 
         let mut bsp = BspTree::new(BspData::new(Area::new((0, 1).into(), params.area.size - (0, 1).into())));
 
-        /* Generate BSP Areas */
+        // Generate BSP Areas
         self.generate_nodes(&mut bsp, rng.gen());
 
-        /* For the Leaf (end) nodes, create rooms */
+        // For the Leaf (end) nodes, create rooms
         self.create_leaf_rooms(&mut bsp, rng.gen());
 
-        /* Connect leaf rooms with sibblings. */
+        // Connect leaf rooms with sibblings.
         self.connect_leaf_rooms(&mut bsp);
 
-        /* Connect leaf rooms with nephews. */
+        // Connect leaf rooms with nephews.
         self.connect_leaf_rooms_with_nephews(&mut bsp);
 
-        /* Commit rooms to map */
+        // Commit rooms to map
         for node in bsp.leaf_iter().collect::<Vec<_>>() {
             if let Some(data) = bsp.get_data(node) {
                 if let Some(ref room) = data.room {
@@ -376,14 +371,14 @@ impl DungeonBuilder for Bsp {
             }
         }
 
-        /* Replace transparent areas with walls */
+        // Replace transparent areas with walls
         for c in output.map.area.iter() {
             if output.map[c] == Tile::Transparent {
                 output.map[c] = Tile::Wall;
             }
         }
 
-        /* Create Corridors */
+        // Create Corridors
         for d in (0..=self.depth).rev() {
             for node in bsp.iter(d).collect::<Vec<_>>() {
                 if let Some(data) = bsp.get_data(node) {
@@ -394,8 +389,8 @@ impl DungeonBuilder for Bsp {
             }
         }
 
-        /* we now have an minimal connected dungeon, so we redo the the rtiangulation, bu now we
-         * include the minor rooms. */
+        // we now have an minimal connected dungeon, so we redo the the rtiangulation, bu now we
+        // include the minor rooms.
         let mut points: Vec<Point> = vec![];
         let mut ids = vec![];
         for node in bsp.leaf_iter().collect::<Vec<_>>() {
@@ -408,7 +403,7 @@ impl DungeonBuilder for Bsp {
         }
         let result = Delaunay::new(&points).expect("No triangulation exists.");
 
-        /* for a set percentage of the edges, create corridors */
+        // for a set percentage of the edges, create corridors
         let mut triangles2 = result.dcel.vertices.clone().into_iter();
         triangles2.next();
         for e1 in result.dcel.vertices {

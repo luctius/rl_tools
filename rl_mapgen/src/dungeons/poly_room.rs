@@ -2,8 +2,10 @@ use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 use rl_utils::{tranthong, Area, Coord};
 
-use crate::dungeons::{Dungeon, DungeonBuilder, DungeonConfigurer, DungeonParams};
-use crate::utils::{flood_fill, Tile};
+use crate::{
+    dungeons::{Dungeon, DungeonBuilder, DungeonConfigurer, DungeonParams},
+    utils::{flood_fill, Tile},
+};
 
 /// Generates a single room via the [Irregular Shaped
 /// Room](http://www.roguebasin.com/index.php?title=Irregular_Shaped_Rooms) Algorithm.
@@ -16,12 +18,15 @@ impl DungeonBuilder for PolyRoom {
     fn minimum_size(&self) -> Coord {
         Coord::new(7, 7)
     }
+
     fn get_params(&self) -> DungeonParams {
         self.params
     }
+
     fn get_name(&self) -> String {
         "PolyRoom".to_string()
     }
+
     fn generate_with_params(&self, params: DungeonParams) -> Dungeon {
         let mut rng = SmallRng::seed_from_u64(params.seed);
         let mut output = Dungeon::new(self.get_name(), params);
@@ -31,16 +36,12 @@ impl DungeonBuilder for PolyRoom {
 
         let depth: Coord = ((params.area.size.x * 30) / 100, (params.area.size.y * 30) / 100).into();
 
-        /* Create rectangles*/
+        // Create rectangles
         let rec_up = Area::new((depth.x, 1).into(), (params.area.size.x - (2 * depth.x), depth.y).into());
-        let rec_down = Area::new(
-            (depth.x, params.area.size.y - depth.y - 1).into(),
-            (params.area.size.x - (2 * depth.x), depth.y).into(),
-        );
-        let rec_right = Area::new(
-            (params.area.size.x - depth.x - 1, depth.y).into(),
-            (depth.x, params.area.size.y - (2 * depth.y)).into(),
-        );
+        let rec_down = Area::new((depth.x, params.area.size.y - depth.y - 1).into(),
+                                 (params.area.size.x - (2 * depth.x), depth.y).into());
+        let rec_right = Area::new((params.area.size.x - depth.x - 1, depth.y).into(),
+                                  (depth.x, params.area.size.y - (2 * depth.y)).into());
         let rec_left = Area::new((1, depth.y).into(), (depth.x, params.area.size.y - (2 * depth.y)).into());
 
         let mut up_vec = vec![];
@@ -48,7 +49,7 @@ impl DungeonBuilder for PolyRoom {
         let mut right_vec = vec![];
         let mut left_vec = vec![];
 
-        /* Select points in rectangles*/
+        // Select points in rectangles
         for _ in 0..rng.gen_range(1, depth.x) {
             let x = rng.gen_range(0, rec_up.size.x) + rec_up.position.x;
             let y = rng.gen_range(0, rec_up.size.y) + rec_up.position.y;
@@ -70,7 +71,7 @@ impl DungeonBuilder for PolyRoom {
             left_vec.push(Coord { x, y });
         }
 
-        /* Sort Vectors*/
+        // Sort Vectors
         up_vec.sort_unstable_by(|a, b| a.x.cmp(&b.x));
         down_vec.sort_unstable_by(|a, b| b.x.cmp(&a.x));
         right_vec.sort_unstable_by(|a, b| a.y.cmp(&b.y));
@@ -93,12 +94,10 @@ impl DungeonBuilder for PolyRoom {
                 output.map[c] = Tile::Wall;
             }
         }
-        flood_fill(
-            &mut output.map,
-            (params.area.size.x / 2, params.area.size.y / 2).into(),
-            Tile::Floor,
-            Tile::Transparent,
-        );
+        flood_fill(&mut output.map,
+                   (params.area.size.x / 2, params.area.size.y / 2).into(),
+                   Tile::Floor,
+                   Tile::Transparent);
 
         output.rooms.push(params.area);
         output
@@ -106,7 +105,7 @@ impl DungeonBuilder for PolyRoom {
 }
 impl DungeonConfigurer for PolyRoom {
     fn new(size_x: isize, size_y: isize) -> Self {
-        PolyRoom { params: DungeonParams::new(size_x, size_y) }
+        PolyRoom { params: DungeonParams::new(size_x, size_y), }
     }
 
     fn with_rng_seed(mut self, seed: u64) -> Self {

@@ -68,7 +68,12 @@ pub struct DijkstraMap {
 }
 impl DijkstraMap {
     pub fn new(size: Coord) -> Self {
-        DijkstraMap { map: Map::new(size), goals: vec![], avoid: vec![] }.blank()
+        DijkstraMap {
+            map: Map::new(size),
+            goals: vec![],
+            avoid: vec![],
+        }
+        .blank()
     }
     pub fn with_offset(mut self, offset: Coord) -> Self {
         self.map.area.position = offset;
@@ -160,11 +165,14 @@ impl DijkstraMap {
                         DijkstraMapValue::Avoid => (),
                         DijkstraMapValue::Goal => (),
                         DijkstraMapValue::Default => {
-                            self.map[p] = DijkstraMapValue::NonGoal((ocost as f32 * rel_weight).round() as isize)
+                            self.map[p] = DijkstraMapValue::NonGoal(
+                                (ocost as f32 * rel_weight).round() as isize,
+                            )
                         }
                         DijkstraMapValue::NonGoal(scost) => {
                             self.map[p] = DijkstraMapValue::NonGoal(
-                                ((scost as f32 + (ocost as f32 * rel_weight)) / 2f32).round() as isize,
+                                ((scost as f32 + (ocost as f32 * rel_weight)) / 2f32).round()
+                                    as isize,
                             )
                         }
                     },

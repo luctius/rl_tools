@@ -26,13 +26,12 @@ impl Dir {
             Dir::South
         }
     }
+
     pub fn iter() -> Iter<'static, Dir> {
         static DIR: [Dir; 4] = [Dir::North, Dir::South, Dir::East, Dir::West];
         DIR.iter()
     }
-    /*
-        pub fn get_random_dir<'a>(seed: u64)-> &'a Dir {
-            Dir::iterator().nth(SmallRng::seed_from_u64(seed).gen_range(0, 3) as usize).unwrap()
-        }
-    */
+    // pub fn get_random_dir<'a>(seed: u64)-> &'a Dir {
+    // Dir::iterator().nth(SmallRng::seed_from_u64(seed).gen_range(0, 3) as usize).unwrap()
+    // }
 }

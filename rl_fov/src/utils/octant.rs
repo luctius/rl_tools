@@ -1,6 +1,5 @@
 use core::slice::Iter;
-use std::fmt;
-use std::iter::Iterator;
+use std::{fmt, iter::Iterator};
 
 use rl_utils::Coord;
 
@@ -26,9 +25,8 @@ impl Octant {
         for o in Octant::iterator() {
             let o_mod = o.coord_mod();
 
-            if tflip == o.flip() &&
-                src.x + (delta_abs.x * o_mod.x) == dst.x &&
-                src.y + (delta_abs.y * o_mod.y) == dst.y {
+            if tflip == o.flip() && src.x + (delta_abs.x * o_mod.x) == dst.x && src.y + (delta_abs.y * o_mod.y) == dst.y
+            {
                 return Some(*o);
             }
         }
@@ -109,8 +107,8 @@ impl fmt::Display for Octant {
 pub struct OctantIter {
     octant: Octant,
     radius: usize,
-    row: usize,
-    cell: usize,
+    row:    usize,
+    cell:   usize,
 }
 impl Iterator for OctantIter {
     type Item = ((usize, usize), Coord);

@@ -1,5 +1,5 @@
-use std::fmt;
 use crate::{Area, Coord, Map, MapObject, MovementCost};
+use std::fmt;
 
 #[derive(Eq, PartialEq, Hash, Debug, Copy, Clone, Ord, PartialOrd)]
 pub enum CATile {
@@ -16,7 +16,7 @@ impl MapObject for CATile {
     fn is_walkable(&self) -> MovementCost {
         match self {
             CATile::Alive => MovementCost::Possible(1),
-            CATile::Dead  => MovementCost::Impossible,
+            CATile::Dead => MovementCost::Impossible,
         }
     }
 }
@@ -24,7 +24,7 @@ impl From<CATile> for char {
     fn from(t: CATile) -> Self {
         match t {
             CATile::Alive => '.',
-            CATile::Dead  => '#',
+            CATile::Dead => '#',
         }
     }
 }
@@ -33,7 +33,7 @@ impl From<char> for CATile {
         match chr {
             '.' => CATile::Alive,
             '#' => CATile::Dead,
-            _   => CATile::Dead,
+            _ => CATile::Dead,
         }
     }
 }
@@ -41,7 +41,7 @@ impl fmt::Display for CATile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&match self {
             CATile::Alive => ".".to_string(),
-            CATile::Dead  => "#".to_string(),
+            CATile::Dead => "#".to_string(),
         })
     }
 }
@@ -76,7 +76,11 @@ impl CA {
         let sum_r1 = Self::calc_wall_sum(pos, 1, map);
         let sum_r2 = Self::calc_wall_sum(pos, 2, map);
 
-        self.next = if sum_r1 >= params.r1 || sum_r2 <= params.r2 { CATile::Dead } else { CATile::Alive };
+        self.next = if sum_r1 >= params.r1 || sum_r2 <= params.r2 {
+            CATile::Dead
+        } else {
+            CATile::Alive
+        };
 
         self
     }

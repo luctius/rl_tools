@@ -64,7 +64,7 @@ impl AreaGenerator for Area {
         if pos_x_mod < 0 || pos_y_mod < 0 {
             None
         } else {
-            Some(Area { position: self.position + (pos_x_mod, pos_y_mod).into(), size: (size_x, size_y).into() })
+            Some(Area { position: self.position + (pos_x_mod, pos_y_mod).into(), size: (size_x, size_y).into(), })
         }
     }
 }

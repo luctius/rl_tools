@@ -121,6 +121,7 @@ impl MapObject for Tile {
             _ => false,
         }
     }
+
     fn is_walkable(&self) -> MovementCost {
         match self {
             Tile::Floor => MovementCost::Possible(1),
@@ -138,15 +139,15 @@ impl MapObject for Tile {
 impl fmt::Display for Tile {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         f.write_str(&match self {
-            Tile::Floor => Paint::white(".").to_string(),
-            Tile::Wall => Paint::fixed(173, "#").to_string(),
-            Tile::BorderWall => Paint::fixed(238, "*").to_string(),
-            Tile::Corridor => Paint::white(",").to_string(),
-            Tile::ClosedDoor => Paint::red("+").to_string(),
-            Tile::SecretDoor => Paint::red("S").to_string(),
-            Tile::Stairs => Paint::fixed(28, ">").to_string(),
-            Tile::Feature(chr) => Paint::fixed(33, chr).to_string(),
-            Tile::Transparent => Paint::black(" ").to_string(),
-        })
+                        Tile::Floor => Paint::white(".").to_string(),
+                        Tile::Wall => Paint::fixed(173, "#").to_string(),
+                        Tile::BorderWall => Paint::fixed(238, "*").to_string(),
+                        Tile::Corridor => Paint::white(",").to_string(),
+                        Tile::ClosedDoor => Paint::red("+").to_string(),
+                        Tile::SecretDoor => Paint::red("S").to_string(),
+                        Tile::Stairs => Paint::fixed(28, ">").to_string(),
+                        Tile::Feature(chr) => Paint::fixed(33, chr).to_string(),
+                        Tile::Transparent => Paint::black(" ").to_string(),
+                    })
     }
 }

@@ -3,8 +3,10 @@ use rand::{rngs::SmallRng, Rng, SeedableRng};
 
 use rl_utils::{Area, Coord};
 
-use crate::dungeons::{Dungeon, DungeonBuilder, DungeonConfigurer, DungeonParams};
-use crate::utils::{flood_fill::flood_fill, Tile};
+use crate::{
+    dungeons::{Dungeon, DungeonBuilder, DungeonConfigurer, DungeonParams},
+    utils::{flood_fill::flood_fill, Tile},
+};
 
 /// This generates a single room [Dungeon](../dungeon/struct.Dungeon.html) by creating a walker in
 /// the middle of the room which digs into a certain direction. When it has digged a certain
@@ -20,16 +22,14 @@ pub enum WalkerMovement {
 impl WalkerMovement {
     pub fn next_coord(self, pos: Coord, seed: u64) -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
-        let movement_mod: [Coord; 8] = [
-            (-1, 0).into(),
-            (0, -1).into(),
-            (1, 0).into(),
-            (0, 1).into(), /* ORTHOGANAL */
-            (-1, -1).into(),
-            (1, -1).into(),
-            (-1, 1).into(),
-            (1, 1).into(), /* DIAGONAL   */
-        ];
+        let movement_mod: [Coord; 8] = [(-1, 0).into(),
+                                        (0, -1).into(),
+                                        (1, 0).into(),
+                                        (0, 1).into(), // ORTHOGANAL
+                                        (-1, -1).into(),
+                                        (1, -1).into(),
+                                        (-1, 1).into(),
+                                        (1, 1).into() /* DIAGONAL */];
         let max = match self {
             WalkerMovement::Orthogonal | WalkerMovement::Diagonal => 4,
             WalkerMovement::Both => 8,
@@ -47,6 +47,7 @@ impl WalkerMovement {
             Some(pos)
         }
     }
+
     pub fn iter(self, pos: Coord, seed: u64) -> DLAIter {
         DLAIter { movement: self, seed, current: pos }
     }
@@ -55,8 +56,8 @@ impl WalkerMovement {
 #[derive(Eq, PartialEq, Hash, Debug, Copy, Clone, Ord, PartialOrd)]
 pub struct DLAIter {
     movement: WalkerMovement,
-    seed: u64,
-    current: Coord,
+    seed:     u64,
+    current:  Coord,
 }
 impl Iterator for DLAIter {
     type Item = Coord;
@@ -74,8 +75,8 @@ impl Iterator for DLAIter {
 
 #[derive(PartialEq, Hash, Debug, Clone, Copy)]
 pub struct Walker {
-    params: DungeonParams,
-    movement: WalkerMovement,
+    params:     DungeonParams,
+    movement:   WalkerMovement,
     floor_perc: isize,
 }
 impl Walker {
@@ -83,6 +84,7 @@ impl Walker {
         self.movement = movement;
         self
     }
+
     pub fn with_floor_percentage(mut self, percentage: isize) -> Self {
         self.floor_perc = percentage.abs() % 100;
         self
@@ -92,12 +94,15 @@ impl DungeonBuilder for Walker {
     fn minimum_size(&self) -> Coord {
         Coord::new(10, 10)
     }
+
     fn get_params(&self) -> DungeonParams {
         self.params
     }
+
     fn get_name(&self) -> String {
         "Walker".to_string()
     }
+
     fn generate_with_params(&self, params: DungeonParams) -> Dungeon {
         let mut rng = SmallRng::seed_from_u64(params.seed);
         let mut output = Dungeon::new(self.get_name(), params);
@@ -153,7 +158,9 @@ impl DungeonBuilder for Walker {
 }
 impl DungeonConfigurer for Walker {
     fn new(size_x: isize, size_y: isize) -> Self {
-        Walker { params: DungeonParams::new(size_x, size_y), movement: WalkerMovement::Orthogonal, floor_perc: 40 }
+        Walker { params:     DungeonParams::new(size_x, size_y),
+                 movement:   WalkerMovement::Orthogonal,
+                 floor_perc: 40, }
     }
 
     fn with_rng_seed(mut self, seed: u64) -> Self {

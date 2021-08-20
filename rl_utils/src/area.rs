@@ -13,7 +13,11 @@ impl Area {
     }
 
     pub fn center(&self) -> Coord {
-        (self.position.x + (self.size.x / 2), self.position.y + (self.size.y / 2)).into()
+        (
+            self.position.x + (self.size.x / 2),
+            self.position.y + (self.size.y / 2),
+        )
+            .into()
     }
 
     pub fn point_within(&self, point: Coord) -> bool {
@@ -47,7 +51,11 @@ impl Area {
     }
 
     pub fn iter(&self) -> AreaIter {
-        AreaIter { pos: (0, 0).into(), size: self.size, position: self.position }
+        AreaIter {
+            pos: (0, 0).into(),
+            size: self.size,
+            position: self.position,
+        }
     }
 }
 impl fmt::Display for Area {

@@ -1,7 +1,7 @@
 use crate::utils::Tile;
 use rl_utils::{Coord, Map, MapObject, MovementCost};
 
-/* Corridor Builders*/
+// Corridor Builders
 mod walker_corridor;
 
 pub type CorridorFunction = dyn Fn(Coord, Coord) -> Vec<Coord>;
@@ -25,12 +25,12 @@ pub fn create_corridor(corridor: &[Coord], map: &mut Map<Tile>, add_door: bool) 
                     let above = *c + (0, 1).into();
                     let below = *c + (0, -1).into();
                     map[above].is_walkable() == MovementCost::Impossible
-                        && map[below].is_walkable() == MovementCost::Impossible
+                    && map[below].is_walkable() == MovementCost::Impossible
                 } else if delta_abs_next.x == 0 && delta_abs_next.y == 1 {
                     let left = *c + (-1, 0).into();
                     let right = *c + (1, 0).into();
                     map[left].is_walkable() == MovementCost::Impossible
-                        && map[right].is_walkable() == MovementCost::Impossible
+                    && map[right].is_walkable() == MovementCost::Impossible
                 } else {
                     false
                 };
@@ -51,12 +51,12 @@ pub fn create_corridor(corridor: &[Coord], map: &mut Map<Tile>, add_door: bool) 
                             let above = *c + (0, 1).into();
                             let below = *c + (0, -1).into();
                             map[above].is_walkable() == MovementCost::Impossible
-                                && map[below].is_walkable() == MovementCost::Impossible
+                            && map[below].is_walkable() == MovementCost::Impossible
                         } else if delta_abs_next.x == 0 && delta_abs_next.y == 1 {
                             let left = *c + (-1, 0).into();
                             let right = *c + (1, 0).into();
                             map[left].is_walkable() == MovementCost::Impossible
-                                && map[right].is_walkable() == MovementCost::Impossible
+                            && map[right].is_walkable() == MovementCost::Impossible
                         } else {
                             false
                         };

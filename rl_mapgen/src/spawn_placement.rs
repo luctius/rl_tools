@@ -6,19 +6,17 @@ use rl_utils::{
     Area, Coord, Map, MapMovement, MapObject, MovementCost,
 };
 
-use crate::dungeons::Dungeon;
-use crate::utils::Tile;
+use crate::{dungeons::Dungeon, utils::Tile};
 
 type SpawnCallback = dyn Fn(Tile, Tile, &[(Coord, Tile)], &Map<Tile>, u64) -> Option<Coord>;
 
-/* TODO: Avoid placing monsters near start position! */
+// TODO: Avoid placing monsters near start position!
 
 /// Modifies the Spawning behaviour of
 /// [Dungeon::with_spawn_point()](../dungeons/struct.Dungeon.html#method.with_spawn_point),
 /// [Dungeon::add_spawn_point()](../dungeons/struct.Dungeon.html#method.with_spawn_point),
 /// [Dungeon::with_stairs()](../dungeons/struct.Dungeon.html#method.with_stairs) and
 /// [Dungeon::add_stairs()](../dungeons/struct.Dungeon.html#method.add_stairs).
-///
 #[allow(missing_debug_implementations)]
 #[derive(Clone)]
 pub enum SpawnPlacements<'a> {
@@ -69,13 +67,12 @@ impl<'a> std::fmt::Display for SpawnPlacements<'a> {
     }
 }
 impl<'a> SpawnPlacements<'a> {
-    fn avoid_critical_path(
-        &self,
-        target: Tile,
-        features: &[(Coord, Tile)],
-        map: &Map<Tile>,
-        seed: u64,
-    ) -> Option<Coord> {
+    fn avoid_critical_path(&self,
+                           target: Tile,
+                           features: &[(Coord, Tile)],
+                           map: &Map<Tile>,
+                           seed: u64)
+                           -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
         let walkable = if let MovementCost::Possible(_) = target.is_walkable() { true } else { false };
 
@@ -93,12 +90,11 @@ impl<'a> SpawnPlacements<'a> {
                     break;
                 }
 
-                if let Some((result, _)) = astar(
-                    s1,
-                    |p| map.walkable_tiles(*p, MapMovement::Orthogonal),
-                    |p| p.pyth(*s2) as usize,
-                    |p| *p == *s2,
-                ) {
+                if let Some((result, _)) = astar(s1,
+                                                 |p| map.walkable_tiles(*p, MapMovement::Orthogonal),
+                                                 |p| p.pyth(*s2) as usize,
+                                                 |p| *p == *s2)
+                {
                     for c in result {
                         critical_path.push(c);
                     }
@@ -107,16 +103,16 @@ impl<'a> SpawnPlacements<'a> {
         }
 
         let mut dmap = DijkstraMap::new(map.area.size).seed_map(|c| {
-            if walkable {
-                if let MovementCost::Possible(_) = map[c].is_walkable() {
-                    DijkstraMapValue::Default
-                } else {
-                    DijkstraMapValue::Impassable
-                }
-            } else {
-                DijkstraMapValue::Impassable
-            }
-        });
+                                                          if walkable {
+                                                              if let MovementCost::Possible(_) = map[c].is_walkable() {
+                                                                  DijkstraMapValue::Default
+                                                              } else {
+                                                                  DijkstraMapValue::Impassable
+                                                              }
+                                                          } else {
+                                                              DijkstraMapValue::Impassable
+                                                          }
+                                                      });
         for c in critical_path {
             dmap = dmap.with_goal(c);
         }
@@ -148,28 +144,28 @@ impl<'a> SpawnPlacements<'a> {
             None
         }
     }
-    fn avoid_similar(
-        &self,
-        spawn_type: Tile,
-        target: Tile,
-        features: &[(Coord, Tile)],
-        map: &Map<Tile>,
-        seed: u64,
-    ) -> Option<Coord> {
+
+    fn avoid_similar(&self,
+                     spawn_type: Tile,
+                     target: Tile,
+                     features: &[(Coord, Tile)],
+                     map: &Map<Tile>,
+                     seed: u64)
+                     -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
         let walkable = if let MovementCost::Possible(_) = target.is_walkable() { true } else { false };
 
         let mut dmap = DijkstraMap::new(map.area.size).seed_map(|c| {
-            if walkable {
-                if let MovementCost::Possible(_) = map[c].is_walkable() {
-                    DijkstraMapValue::Default
-                } else {
-                    DijkstraMapValue::Impassable
-                }
-            } else {
-                DijkstraMapValue::Impassable
-            }
-        });
+                                                          if walkable {
+                                                              if let MovementCost::Possible(_) = map[c].is_walkable() {
+                                                                  DijkstraMapValue::Default
+                                                              } else {
+                                                                  DijkstraMapValue::Impassable
+                                                              }
+                                                          } else {
+                                                              DijkstraMapValue::Impassable
+                                                          }
+                                                      });
         for (c, tile) in features {
             if *tile == spawn_type {
                 dmap = dmap.with_goal(*c);
@@ -199,28 +195,28 @@ impl<'a> SpawnPlacements<'a> {
             None
         }
     }
-    fn cluster_similar(
-        &self,
-        spawn_type: Tile,
-        target: Tile,
-        features: &[(Coord, Tile)],
-        map: &Map<Tile>,
-        seed: u64,
-    ) -> Option<Coord> {
+
+    fn cluster_similar(&self,
+                       spawn_type: Tile,
+                       target: Tile,
+                       features: &[(Coord, Tile)],
+                       map: &Map<Tile>,
+                       seed: u64)
+                       -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
         let walkable = if let MovementCost::Possible(_) = target.is_walkable() { true } else { false };
 
         let mut dmap = DijkstraMap::new(map.area.size).seed_map(|c| {
-            if walkable {
-                if let MovementCost::Possible(_) = map[c].is_walkable() {
-                    DijkstraMapValue::Default
-                } else {
-                    DijkstraMapValue::Impassable
-                }
-            } else {
-                DijkstraMapValue::Impassable
-            }
-        });
+                                                          if walkable {
+                                                              if let MovementCost::Possible(_) = map[c].is_walkable() {
+                                                                  DijkstraMapValue::Default
+                                                              } else {
+                                                                  DijkstraMapValue::Impassable
+                                                              }
+                                                          } else {
+                                                              DijkstraMapValue::Impassable
+                                                          }
+                                                      });
         for (c, tile) in features {
             if *tile == spawn_type {
                 dmap = dmap.with_goal(*c);
@@ -250,7 +246,8 @@ impl<'a> SpawnPlacements<'a> {
             None
         }
     }
-    /* TODO: select a specific tile type. */
+
+    // TODO: select a specific tile type.
     fn random_room(&self, rooms: &[Area], seed: u64) -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
 
@@ -265,6 +262,7 @@ impl<'a> SpawnPlacements<'a> {
             None
         }
     }
+
     fn random_secret_room(&self, srooms: &[Area], seed: u64) -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
 
@@ -279,7 +277,8 @@ impl<'a> SpawnPlacements<'a> {
             None
         }
     }
-    /* TODO: select a specific tile type. */
+
+    // TODO: select a specific tile type.
     fn random_corridor(&self, corridors: &[Vec<Coord>], seed: u64) -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
 
@@ -294,6 +293,7 @@ impl<'a> SpawnPlacements<'a> {
             None
         }
     }
+
     fn random(&self, target: Tile, map: &Map<Tile>, seed: u64) -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
         let mut ctr = 0;
@@ -309,15 +309,15 @@ impl<'a> SpawnPlacements<'a> {
             }
         }
     }
-    fn near(
-        &self,
-        near_tile: Tile,
-        spawn_type: Tile,
-        target: Tile,
-        features: &[(Coord, Tile)],
-        map: &Map<Tile>,
-        seed: u64,
-    ) -> Option<Coord> {
+
+    fn near(&self,
+            near_tile: Tile,
+            spawn_type: Tile,
+            target: Tile,
+            features: &[(Coord, Tile)],
+            map: &Map<Tile>,
+            seed: u64)
+            -> Option<Coord> {
         let mut rng = SmallRng::seed_from_u64(seed);
         let mut near_vec = vec![];
 
@@ -366,14 +366,14 @@ impl<'a> SpawnPlacements<'a> {
             None
         }
     }
-    pub fn place(
-        self,
-        spawn_type: Tile,
-        target: Tile,
-        features: &[(Coord, Tile)],
-        dungeon: &Dungeon,
-        seed: u64,
-    ) -> Option<Coord> {
+
+    pub fn place(self,
+                 spawn_type: Tile,
+                 target: Tile,
+                 features: &[(Coord, Tile)],
+                 dungeon: &Dungeon,
+                 seed: u64)
+                 -> Option<Coord> {
         match self {
             SpawnPlacements::AvoidCriticalPath => self.avoid_critical_path(target, features, &dungeon.map, seed),
             SpawnPlacements::AvoidSimilar => self.avoid_similar(spawn_type, target, features, &dungeon.map, seed),

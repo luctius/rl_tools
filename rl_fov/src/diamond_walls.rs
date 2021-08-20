@@ -1,9 +1,8 @@
-//Modified from: http://www.adammil.net/blog/v125_roguelike_vision_algorithms.html#diamondcode
+// Modified from: http://www.adammil.net/blog/v125_roguelike_vision_algorithms.html#diamondcode
 
 use rl_utils::{Area, Coord};
 
-use crate::utils::Octant;
-use crate::{Los, Fov, FovCallbackEnum, FovConfig, VisionShape};
+use crate::{utils::Octant, Fov, FovCallbackEnum, FovConfig, Los, VisionShape};
 
 #[derive(Copy, Clone, PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
 struct Slope {
@@ -14,12 +13,17 @@ impl Slope {
     pub fn new(x: isize, y: isize) -> Slope {
         Slope { x, y }
     }
+
     pub fn greater(&self, s: Slope) -> bool {
         self.y * s.x > self.x * s.y
-    } // this > y/x
+    }
+
+    // this > y/x
     pub fn greater_or_equal(&self, s: Slope) -> bool {
         self.y * s.x >= self.x * s.y
-    } // this >= y/x
+    }
+
+    // this >= y/x
     pub fn less_or_equal(&self, s: Slope) -> bool {
         self.y * s.x <= self.x * s.y
     } // this <= y/x
@@ -38,15 +42,16 @@ enum Opaque {
 }
 
 #[derive(PartialEq, Eq, Hash, PartialOrd, Ord, Debug)]
-pub struct DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool {
+pub struct DiamondWalls<'a, T, Func>
+    where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool, {
     pub symmetric: bool,
-    pub area: Area,
-    pub radius: usize,
-    pub vision: VisionShape,
-    pub cb_type: &'a mut T,
-    pub callback: Func,
+    pub area:      Area,
+    pub radius:    usize,
+    pub vision:    VisionShape,
+    pub cb_type:   &'a mut T,
+    pub callback:  Func,
 }
-impl<'a, T, Func> DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool {
+impl<'a, T, Func> DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool, {
     fn compute(&mut self, src: Coord, octant: Octant, row: isize, mut top: Slope, mut bottom: Slope) {
         for x in row..=self.radius as isize {
             let mut was_opaque = Opaque::Uninitialised;
@@ -74,14 +79,17 @@ impl<'a, T, Func> DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, Fov
 
             for y in (bottom_y..=top_y).rev() {
                 let point = octant.calc_point(src, (x, y).into());
-                if !self.area.point_within(point) { continue; }
-                else if !self.vision.in_radius(x as usize,y as usize, self.radius) { continue; }
+                if !self.area.point_within(point) {
+                    continue;
+                } else if !self.vision.in_radius(x as usize, y as usize, self.radius) {
+                    continue;
+                }
 
                 // NOTE: use the next line instead if you want the algorithm to be symmetrical
                 if !self.symmetric {
                     (self.callback)(self.cb_type, point, FovCallbackEnum::SetVisible(true));
                 } else if (y != top.y || top.greater_or_equal((x, y).into()))
-                    && (y != bottom.y || bottom.less_or_equal((x, y).into()))
+                          && (y != bottom.y || bottom.less_or_equal((x, y).into()))
                 {
                     (self.callback)(self.cb_type, point, FovCallbackEnum::SetVisible(true));
                 }
@@ -91,11 +99,11 @@ impl<'a, T, Func> DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, Fov
                 let is_opaque = (self.callback)(self.cb_type, point, FovCallbackEnum::IsBlocked);
                 let is_opaque = if is_opaque {
                     if y == top.y
-                        && top.less_or_equal((y * 2 - 1, x * 2).into())
-                        && !(self.callback)(self.cb_type, (x, y - 1).into(), FovCallbackEnum::IsBlocked)
-                        || y == bottom.y
-                            && bottom.greater_or_equal((y * 2 + 1, x * 2).into())
-                            && !(self.callback)(self.cb_type, (x, y + 1).into(), FovCallbackEnum::IsBlocked)
+                       && top.less_or_equal((y * 2 - 1, x * 2).into())
+                       && !(self.callback)(self.cb_type, (x, y - 1).into(), FovCallbackEnum::IsBlocked)
+                       || y == bottom.y
+                          && bottom.greater_or_equal((y * 2 + 1, x * 2).into())
+                          && !(self.callback)(self.cb_type, (x, y + 1).into(), FovCallbackEnum::IsBlocked)
                     {
                         false
                     } else {
@@ -135,24 +143,26 @@ impl<'a, T, Func> DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, Fov
         }
     }
 }
-impl<'a, T, Func> FovConfig for DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool {
+impl<'a, T, Func> FovConfig for DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool, {
     fn with_area(mut self, area: Area) -> Self {
         self.area = area;
         self
     }
+
     fn with_radius(mut self, radius: usize) -> Self {
         self.radius = radius;
         self
     }
+
     fn with_vision_shape(mut self, vision: VisionShape) -> Self {
         self.vision = vision;
         self
     }
 }
-impl<'a, T, Func> Fov for DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool {
+impl<'a, T, Func> Fov for DiamondWalls<'a, T, Func> where Func: FnMut(&mut T, Coord, FovCallbackEnum) -> bool, {
     fn fov(&mut self, src: Coord) {
         for octant in Octant::iterator() {
-            self.compute(src, *octant, 1, Slope::new(1, 1), Slope::new(1, 0) );
+            self.compute(src, *octant, 1, Slope::new(1, 1), Slope::new(1, 0));
         }
     }
 }

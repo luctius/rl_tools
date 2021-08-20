@@ -7,9 +7,11 @@ use triangulation::{Delaunay, Point};
 
 use rl_utils::{Area, Coord};
 
-use crate::corridors::{create_corridor, walker_corridor, CorridorFunction};
-use crate::dungeons::{Dungeon, DungeonBuilder, DungeonCombiner, DungeonConfigurer, DungeonParams, Room};
-use crate::utils::{flood_fill::connect_map, separation_steering::separate_areas, Tile};
+use crate::{
+    corridors::{create_corridor, walker_corridor, CorridorFunction},
+    dungeons::{Dungeon, DungeonBuilder, DungeonCombiner, DungeonConfigurer, DungeonParams, Room},
+    utils::{flood_fill::connect_map, separation_steering::separate_areas, Tile},
+};
 
 /// Generate a [Dungeon](dungeons/struct.Dungeon.html) via seperate_steering.
 ///
@@ -35,56 +37,49 @@ pub struct Stack {
 }
 impl Stack {
     pub fn with_major_rooms(mut self, minimum: usize, maximum: usize) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.major_rooms = (minimum, maximum);
         self
     }
+
     pub fn with_minor_rooms(mut self, minimum: usize, maximum: usize) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.minor_rooms = (minimum, maximum);
         self
     }
+
     pub fn with_major_room_sizes(mut self, minimum: usize, maximum: usize) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.major_rooms_sizes = (minimum, maximum);
         self
     }
+
     pub fn with_minor_room_sizes(mut self, minimum: usize, maximum: usize) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.minor_rooms_sizes = (minimum, maximum);
         self
     }
+
     pub fn with_major_room_span_radius(mut self, radius: usize) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.major_room_spawn_radius =
             radius % min!(self.params.area.size.x as usize, self.params.area.size.y as usize);
         self
     }
+
     pub fn with_minor_room_span_radius(mut self, radius: usize) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.minor_room_spawn_radius =
             radius % min!(self.params.area.size.x as usize, self.params.area.size.y as usize);
         self
     }
+
     pub fn with_corridor_chance(mut self, chance: usize) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.corridor_chance = chance % 100;
         self
     }
+
     fn select_room_builder(&self, room_size: Coord, random_perc: isize) -> &dyn DungeonBuilder {
         let mut random_perc = random_perc.abs() % 100;
 
@@ -101,23 +96,19 @@ impl Stack {
 }
 impl DungeonCombiner for Stack {
     fn with_default_builder(mut self, builder: Box<dyn DungeonBuilder>) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.default_builder = builder;
         self
     }
+
     fn with_additional_builder(mut self, percentage: isize, builder: Box<dyn DungeonBuilder>) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.builders.push((percentage.abs() % 100, builder));
         self
     }
+
     fn with_default_corridor(mut self, corridor: Box<CorridorFunction>) -> Self
-    where
-        Self: Sized,
-    {
+        where Self: Sized, {
         self.default_corridor = corridor;
         self
     }
@@ -126,47 +117,42 @@ impl DungeonBuilder for Stack {
     fn minimum_size(&self) -> Coord {
         Coord::new(30, 30)
     }
+
     fn get_params(&self) -> DungeonParams {
         self.params
     }
+
     fn get_name(&self) -> String {
         "Stack".to_string()
     }
+
     fn generate_with_params(&self, params: DungeonParams) -> Dungeon {
         let mut rng = SmallRng::seed_from_u64(params.seed);
         let mut output = Dungeon::new(self.get_name(), params);
         let mut room_vector = vec![];
 
-        /* Slightly offset from center to compensate that this is for the upper left corner*/
-        let center: Coord = (
-            params.area.position.x + (params.area.size.x / 2) - 6,
-            params.area.position.y + (params.area.size.y / 2) - 4,
-        ).into();
+        // Slightly offset from center to compensate that this is for the upper left corner
+        let center: Coord = (params.area.position.x + (params.area.size.x / 2) - 6,
+                             params.area.position.y + (params.area.size.y / 2) - 4)
+                                                                                   .into();
 
         loop {
-            /* Create major rooms */
+            // Create major rooms
             for _ in 0..rng.gen_range(self.major_rooms.0, self.major_rooms.1) {
                 let params = loop {
-                    let x_mod = rng.gen_range(
-                        center.x - (self.major_room_spawn_radius as isize),
-                        center.x + self.major_room_spawn_radius as isize,
-                    );
-                    let y_mod = rng.gen_range(
-                        center.y - (self.major_room_spawn_radius as isize),
-                        center.y + self.major_room_spawn_radius as isize,
-                    );
+                    let x_mod = rng.gen_range(center.x - (self.major_room_spawn_radius as isize),
+                                              center.x + self.major_room_spawn_radius as isize);
+                    let y_mod = rng.gen_range(center.y - (self.major_room_spawn_radius as isize),
+                                              center.y + self.major_room_spawn_radius as isize);
 
-                    let params = DungeonParams {
-                        area: Area {
-                            size: (
-                                rng.gen_range(self.major_rooms_sizes.0, self.major_rooms_sizes.1),
-                                rng.gen_range(self.major_rooms_sizes.0, self.major_rooms_sizes.1),
-                            )
-                                .into(),
-                            position: (x_mod, y_mod).into(),
-                        },
-                        seed: rng.gen(),
-                    };
+                    let params = DungeonParams { area: Area { size:
+                                                                  (rng.gen_range(self.major_rooms_sizes.0,
+                                                                                 self.major_rooms_sizes.1),
+                                                                   rng.gen_range(self.major_rooms_sizes.0,
+                                                                                 self.major_rooms_sizes.1))
+                                                                                                           .into(),
+                                                              position: (x_mod, y_mod).into(), },
+                                                 seed: rng.gen(), };
                     if output.area.area_within(params.area) {
                         break params;
                     }
@@ -175,70 +161,62 @@ impl DungeonBuilder for Stack {
                 room_vector.push(builder.generate_with_params(params));
             }
 
-            /* Create minor rooms */
+            // Create minor rooms
             let minor_start = room_vector.len();
             for _ in 0..rng.gen_range(self.minor_rooms.0, self.minor_rooms.1) {
-                let x_mod = rng.gen_range(
-                    center.x - (self.minor_room_spawn_radius as isize),
-                    center.x + self.minor_room_spawn_radius as isize,
-                );
-                let y_mod = rng.gen_range(
-                    center.y - (self.minor_room_spawn_radius as isize),
-                    center.y + self.minor_room_spawn_radius as isize,
-                );
+                let x_mod = rng.gen_range(center.x - (self.minor_room_spawn_radius as isize),
+                                          center.x + self.minor_room_spawn_radius as isize);
+                let y_mod = rng.gen_range(center.y - (self.minor_room_spawn_radius as isize),
+                                          center.y + self.minor_room_spawn_radius as isize);
 
-                let params = DungeonParams {
-                    area: Area {
-                        size: (
-                            rng.gen_range(self.minor_rooms_sizes.0, self.minor_rooms_sizes.1),
-                            rng.gen_range(self.minor_rooms_sizes.0, self.minor_rooms_sizes.1),
-                        )
-                            .into(),
-                        position: (x_mod, y_mod).into(),
-                    },
-                    seed: rng.gen(),
-                };
+                let params = DungeonParams { area: Area { size:     (rng.gen_range(self.minor_rooms_sizes.0,
+                                                                                   self.minor_rooms_sizes.1),
+                                                                     rng.gen_range(self.minor_rooms_sizes.0,
+                                                                                   self.minor_rooms_sizes.1))
+                                                                                                             .into(),
+                                                          position: (x_mod, y_mod).into(), },
+                                             seed: rng.gen(), };
                 let builder = self.select_room_builder(params.area.size, rng.gen_range(0, 100));
                 room_vector.push(builder.generate_with_params(params));
             }
 
-            /* collect room areas */
+            // collect room areas
             let mut stack = vec![];
             for r in &room_vector {
                 stack.push(r.area);
             }
 
-            /* and separate the cards */
+            // and separate the cards
             let bounds = Area::new((4, 4).into(), params.area.size - (6, 6).into());
             let stack = separate_areas(bounds, &stack);
             for (i, r) in stack.iter().enumerate() {
                 room_vector[i].area.position = r.position;
             }
 
-            /* commit rooms to the map, their position will not change anymore*/
+            // commit rooms to the map, their position will not change anymore
             for r in &room_vector {
                 output.map.import_from_iter(r.iter());
             }
-            /* remove transparent tiles */
+            // remove transparent tiles
             for c in output.map.area.iter() {
                 if output.map[c] == Tile::Transparent {
                     output.map[c] = Tile::Wall;
                 }
             }
 
-            /* collect the major room centers */
+            // collect the major room centers
             let mut points: Vec<Point> = vec![];
             for room in room_vector.iter().take(minor_start) {
                 points.push(room.map.area.center().into());
             }
-            /* triangulate*/
+            // triangulate
             let result = Delaunay::new(&points);
             if result.is_none() {
                 continue;
             }
             let result = result.expect("No triangulation exists. [1]");
 
-            /* collect the triangulated edges */
+            // collect the triangulated edges
             let mut edges = vec![];
             let mut triangles2 = result.dcel.vertices.clone().into_iter();
             triangles2.next();
@@ -248,7 +226,7 @@ impl DungeonBuilder for Stack {
                 }
             }
 
-            /* do an minimal spanning tree, and create those corridors */
+            // do an minimal spanning tree, and create those corridors
             let mut corridors = vec![];
             for (e1, e2, _) in kruskal_indices(points.len(), edges.as_slice()) {
                 let e1_center = room_vector[e1].map.area.center();
@@ -263,15 +241,15 @@ impl DungeonBuilder for Stack {
                 }
             }
 
-            /* we now have an minimal connected dungeon, so we redo the the rtiangulation, bu now we
-             * include the minor rooms. */
+            // we now have an minimal connected dungeon, so we redo the the rtiangulation, bu now we
+            // include the minor rooms.
             let mut points: Vec<Point> = vec![];
             for r in &room_vector {
                 points.push(r.area.center().into());
             }
             let result = Delaunay::new(&points).expect("No triangulation exists. [2]");
 
-            /* for a set percentage of the edges, create corridors */
+            // for a set percentage of the edges, create corridors
             let mut triangles2 = result.dcel.vertices.clone().into_iter();
             triangles2.next();
             for e1 in result.dcel.vertices {
@@ -291,19 +269,19 @@ impl DungeonBuilder for Stack {
                 }
             }
 
-            /* Create the corridors */
+            // Create the corridors
             for c in &corridors {
                 create_corridor(c, &mut output.map, false);
             }
-            /* retrace the corridors and place doors */
+            // retrace the corridors and place doors
             for c in &corridors {
                 create_corridor(c, &mut output.map, true);
             }
 
-            /* and finally create corridors to the left over areas */
+            // and finally create corridors to the left over areas
             connect_map(&mut output.map);
 
-            /* populate output dungeons room list */
+            // populate output dungeons room list
             for c in corridors {
                 output.add_corridor(c);
             }
@@ -319,19 +297,17 @@ impl DungeonBuilder for Stack {
 }
 impl DungeonConfigurer for Stack {
     fn new(size_x: isize, size_y: isize) -> Self {
-        Stack {
-            params: DungeonParams::new(size_x, size_y),
-            default_builder: Box::new(Room::new(size_x, size_y)),
-            default_corridor: Box::new(walker_corridor),
-            builders: vec![],
-            major_rooms: (5, 10),
-            minor_rooms: (20, 40),
-            major_rooms_sizes: (10, 25),
-            minor_rooms_sizes: (4, 8),
-            major_room_spawn_radius: 35,
-            minor_room_spawn_radius: 15,
-            corridor_chance: 40,
-        }
+        Stack { params: DungeonParams::new(size_x, size_y),
+                default_builder: Box::new(Room::new(size_x, size_y)),
+                default_corridor: Box::new(walker_corridor),
+                builders: vec![],
+                major_rooms: (5, 10),
+                minor_rooms: (20, 40),
+                major_rooms_sizes: (10, 25),
+                minor_rooms_sizes: (4, 8),
+                major_room_spawn_radius: 35,
+                minor_room_spawn_radius: 15,
+                corridor_chance: 40, }
     }
 
     fn with_rng_seed(mut self, seed: u64) -> Self {

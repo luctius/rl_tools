@@ -17,46 +17,40 @@ impl NodeDir {
 }
 
 pub trait Split
-where
-    Self: Sized,
-{
+    where Self: Sized, {
     type Context;
     fn split(&mut self, context: &Self::Context) -> Option<(Self, Self)>;
 }
 
 #[derive(Debug)]
 pub struct BspTree<S>
-where
-    S: Split,
-{
-    pub data: Vec<S>,
+    where S: Split, {
+    pub data:  Vec<S>,
     pub nodes: Vec<BspNode>,
     pub depth: usize,
 }
-impl<S> BspTree<S>
-where
-    S: Split,
-{
+impl<S> BspTree<S> where S: Split, {
     pub fn new(data: S) -> BspTree<S> {
-        BspTree {
-            depth: 0,
-            data: vec![data],
-            nodes: vec![BspNode { parent: 0, id: 0, sibbling: None, depth: 0, children: [None, None] }],
-        }
+        BspTree { depth: 0,
+                  data:  vec![data],
+                  nodes: vec![BspNode { parent:   0,
+                                        id:       0,
+                                        sibbling: None,
+                                        depth:    0,
+                                        children: [None, None], }], }
     }
+
     pub fn add_node(&mut self, node: BspNode, data: S) -> Option<BspNode> {
         for (idx, n) in self.nodes[node.id].children.iter().enumerate() {
             if n.is_some() {
                 continue;
             } else {
                 let new_idx = self.nodes.len();
-                let new_node = BspNode {
-                    parent: node.id,
-                    id: new_idx,
-                    sibbling: None,
-                    depth: node.depth + 1,
-                    children: [None, None],
-                };
+                let new_node = BspNode { parent:   node.id,
+                                         id:       new_idx,
+                                         sibbling: None,
+                                         depth:    node.depth + 1,
+                                         children: [None, None], };
 
                 if node.depth + 1 > self.depth {
                     self.depth = node.depth + 1;
@@ -69,24 +63,30 @@ where
         }
         None
     }
+
     pub fn link_sibblings(&mut self, node1: BspNode, node2: BspNode) {
         if node1.parent == node2.parent && node1.id != node2.id {
             self.nodes[node1.id].sibbling = Some(node2.id);
             self.nodes[node2.id].sibbling = Some(node1.id);
         }
     }
+
     pub fn get_parent_data(&self, node: BspNode) -> Option<&S> {
         self.data.get(node.parent)
     }
+
     pub fn get_root(&self) -> BspNode {
         self.nodes[0]
     }
+
     pub fn get_data(&self, node: BspNode) -> Option<&S> {
         self.data.get(node.id)
     }
+
     pub fn get_data_mut(&mut self, node: BspNode) -> Option<&mut S> {
         self.data.get_mut(node.id)
     }
+
     pub fn get_tree_depth(&self) -> usize {
         self.depth
     }
@@ -96,23 +96,18 @@ where
     }
 
     pub fn leaf_iter(&self) -> BspLeafIter<S> {
-        BspLeafIter { pos: 0, tree: self }
+        BspLeafIter { pos: 0, tree: self, }
     }
 }
 
 #[derive(Debug)]
 pub struct BspIter<'a, S>
-where
-    S: Split,
-{
-    pos: usize,
+    where S: Split, {
+    pos:   usize,
     depth: usize,
-    tree: &'a BspTree<S>,
+    tree:  &'a BspTree<S>,
 }
-impl<'a, S> Iterator for BspIter<'a, S>
-where
-    S: Split,
-{
+impl<'a, S> Iterator for BspIter<'a, S> where S: Split, {
     type Item = BspNode;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -128,16 +123,11 @@ where
 
 #[derive(Debug)]
 pub struct BspLeafIter<'a, S>
-where
-    S: Split,
-{
-    pos: usize,
+    where S: Split, {
+    pos:  usize,
     tree: &'a BspTree<S>,
 }
-impl<'a, S> Iterator for BspLeafIter<'a, S>
-where
-    S: Split,
-{
+impl<'a, S> Iterator for BspLeafIter<'a, S> where S: Split, {
     type Item = BspNode;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -157,37 +147,33 @@ where
 
 #[derive(Debug, Eq, PartialEq, Hash, Copy, Clone)]
 pub struct BspNode {
-    parent: BspId,
-    pub id: BspId,
+    parent:   BspId,
+    pub id:   BspId,
     sibbling: Option<BspId>,
-    depth: usize,
+    depth:    usize,
     children: [Option<BspId>; 2],
 }
 impl BspNode {
     pub fn get_sibbling<S>(&self, tree: &BspTree<S>) -> Option<BspNode>
-    where
-        S: Split,
-    {
+        where S: Split, {
         if let Some(n) = self.sibbling {
             tree.nodes.get(n).cloned()
         } else {
             None
         }
     }
+
     pub fn get_child<S>(&self, dir: NodeDir, tree: &BspTree<S>) -> Option<BspNode>
-    where
-        S: Split,
-    {
+        where S: Split, {
         if let Some(n) = self.children[dir.to_idx()] {
             tree.nodes.get(n).cloned()
         } else {
             None
         }
     }
+
     pub fn split<S>(&mut self, context: &<S as Split>::Context, tree: &mut BspTree<S>) -> Option<(BspNode, BspNode)>
-    where
-        S: Split,
-    {
+        where S: Split, {
         for i in &self.children {
             if i.is_some() {
                 return None;
@@ -199,7 +185,7 @@ impl BspNode {
         } else {
             return None;
         } {
-            let kids = tree.add_node(*self, c1).and_then(|n1| tree.add_node(*self, c2).map(|n2| (n1, n2)) );
+            let kids = tree.add_node(*self, c1).and_then(|n1| tree.add_node(*self, c2).map(|n2| (n1, n2)));
 
             if let Some((n1, n2)) = kids {
                 tree.link_sibblings(n1, n2);

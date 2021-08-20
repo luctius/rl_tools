@@ -89,7 +89,10 @@ impl From<Coord> for (usize, usize) {
 }
 impl From<(usize, usize)> for Coord {
     fn from(pos: (usize, usize)) -> Self {
-        Coord { x: pos.0 as isize, y: pos.1 as isize }
+        Coord {
+            x: pos.0 as isize,
+            y: pos.1 as isize,
+        }
     }
 }
 impl From<(isize, isize)> for Coord {
@@ -99,17 +102,26 @@ impl From<(isize, isize)> for Coord {
 }
 impl From<(i32, i32)> for Coord {
     fn from(pos: (i32, i32)) -> Self {
-        Coord { x: pos.0 as isize, y: pos.1 as isize }
+        Coord {
+            x: pos.0 as isize,
+            y: pos.1 as isize,
+        }
     }
 }
 impl From<triangulation::geom::Point> for Coord {
     fn from(pos: triangulation::geom::Point) -> Self {
-        Coord { x: pos.x as isize, y: pos.y as isize }
+        Coord {
+            x: pos.x as isize,
+            y: pos.y as isize,
+        }
     }
 }
 impl From<Coord> for triangulation::geom::Point {
     fn from(pos: Coord) -> Self {
-        triangulation::geom::Point { x: pos.x as f32, y: pos.y as f32 }
+        triangulation::geom::Point {
+            x: pos.x as f32,
+            y: pos.y as f32,
+        }
     }
 }
 

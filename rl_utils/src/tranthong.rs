@@ -12,11 +12,14 @@ fn difference(start: isize, end: isize) -> (isize, isize) {
 pub fn tranthong(start: Coord, end: Coord) -> Vec<Coord> {
     let mut retvec = Vec::with_capacity((start.pyth(end) * 2) as usize);
 
-    tranthong_func(start, end, |c| retvec.push(c) );
+    tranthong_func(start, end, |c| retvec.push(c));
     retvec
 }
 
-pub fn tranthong_func<Func>(start: Coord, end: Coord, mut func: Func) where Func: FnMut(Coord) {
+pub fn tranthong_func<Func>(start: Coord, end: Coord, mut func: Func)
+where
+    Func: FnMut(Coord),
+{
     let (deltax, signdx) = difference(start.x, end.x);
     let (deltay, signdy) = difference(start.y, end.y);
 
