@@ -174,7 +174,7 @@ create_ecs! {
 mod tests {
     use crate::*;
     use rl_ecs::stores::ResourceStore;
-    use rl_ecs::stores::{StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent};
+    use rl_ecs::stores::{StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent, StoreExSetParent, StoreExPurge};
 
     #[test]
     fn it_works() {
@@ -191,18 +191,18 @@ mod tests {
         assert_eq!(c1, l1_parent);
         assert_eq!(c1, s1_parent);
 
-        // let t: Option<&Movement> = ecs.get(m1).unwrap();
-        // assert!(t.is_some());
+        let t: Option<&Stats> = ecs.get(s1);
+        assert!(t.is_some());
 
-        // ecs.purge(m1).unwrap();
-        // let t: Option<&Movement> = ecs.get(m1).unwrap();
-        // assert!(t.is_none());
+        ecs.purge(s1);
+        let t: Option<&Stats> = ecs.get(s1);
+        assert!(t.is_none());
 
-        // ecs.purge(p1).unwrap();
-        // let v: Option<&Velocity> = ecs.get(v1).unwrap();
-        // let p: Option<&Position> = ecs.get(p1).unwrap();
-        // assert!(v.is_none());
-        // assert!(p.is_none());
+        ecs.purge(c1);
+        let c: Option<&Creature> = ecs.get(c1);
+        let l: Option<&Location> = ecs.get(l1);
+        assert!(c.is_none());
+        assert!(l.is_none());
 
         // let _: &u64 = ecs.get_resource();
         // let _: &mut u64 = ecs.get_resource_mut();

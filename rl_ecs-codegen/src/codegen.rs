@@ -43,7 +43,7 @@ impl From<ValidatedEcs> for TokenStream {
         quote_spanned! {span =>
             pub mod #mod_name {
                 use rl_ecs::key::KeyExt;
-                use rl_ecs::stores::{StoreExBasic, StoreExCreate,StoreExGetParent,StoreExGetChild};
+                use rl_ecs::stores::{StoreExBasic,StoreExBasicMut, StoreExCreate,StoreExGetParent,StoreExSetParent,StoreExGetChild, StoreExPurge};
                 use components::InventoryKey;
 
                 #(#component_imports)*
@@ -52,7 +52,7 @@ impl From<ValidatedEcs> for TokenStream {
                     use core::convert::{TryFrom, TryInto};
                     use rl_ecs::key::KeyExt;
                     use rl_ecs::stores::Store;
-                    use rl_ecs::stores::{StoreExBasic, StoreExCreate,StoreExGetParent,StoreExGetChild};
+                    use rl_ecs::stores::{StoreExBasic,StoreExBasicMut, StoreExCreate,StoreExGetParent,StoreExSetParent,StoreExGetChild, StoreExPurge};
                     use rl_ecs::slotmap::{new_key_type, Key, KeyData};
                     use rl_ecs::arrayvec::{ArrayVec};
 
