@@ -71,7 +71,9 @@ impl<PKEY, CKEY, S> StoreExAttach<PKEY, CKEY> for S
 {
     fn attach(&mut self, pkey: PKEY, ckey: CKEY) -> bool { self.set_parent(ckey, pkey) && self.set_child(pkey, ckey) }
 
-    fn detach(&mut self, pkey: PKEY, ckey: CKEY) -> bool { self.clear_parent(ckey, pkey) && self.clear_child(pkey, ckey) }
+    fn detach(&mut self, pkey: PKEY, ckey: CKEY) -> bool {
+        self.clear_parent(ckey, pkey) && self.clear_child(pkey, ckey)
+    }
 }
 
 pub trait StoreExCreateAttach<T, PKEY, CKEY>
