@@ -110,7 +110,10 @@ pub trait StoreExPurge<KEY>
 //         where FUNC: FnMut(T);
 // }
 
-pub trait ResourceStore<T> {
+pub trait UniqueStore<T> {
     fn get_unique(&self) -> &T;
     fn get_unique_mut(&mut self) -> &mut T;
+}
+pub trait UniqueStoreKey<KEY> {
+    fn unique_key() -> KEY;
 }

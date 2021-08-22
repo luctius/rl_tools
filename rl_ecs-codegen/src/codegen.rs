@@ -4,7 +4,9 @@ use quote::{format_ident, quote_spanned};
 use syn::Ident;
 
 mod component;
+mod unique;
 use component::{gen_mod_components, CodeGenComponent};
+use unique::{gen_mod_uniques, CodeGenUnique};
 
 impl From<ValidatedEcs> for proc_macro::TokenStream {
     fn from(ecs: ValidatedEcs) -> proc_macro::TokenStream {
@@ -24,17 +26,33 @@ impl From<ValidatedEcs> for TokenStream {
 
         let component_imports: Vec<TokenStream> =
             ecs.components.values().map(|c| c.gen_imports()).collect();
-        let mod_components = gen_mod_components(name, &ecs.components);
+        let unique_imports: Vec<TokenStream> =
+            ecs.uniques.values().map(|c| c.gen_imports()).collect();
+        let mod_components = gen_mod_components(name, &ecs.components, &ecs.uniques);
+        let mod_unique = gen_mod_uniques(name, &ecs.components, &ecs.uniques);
+
+        let comp_keys: Vec<TokenStream> = ecs.components.values().map(|c| c.gen_key()).collect();
+        let unique_keys: Vec<TokenStream> = ecs.uniques.values().map(|c| c.gen_key()).collect();
 
         quote_spanned! {span =>
             pub mod #mod_name {
                 use rl_ecs::key::KeyExt;
                 use rl_ecs::stores::{StoreExBasic,StoreExBasicMut, StoreExCreate,StoreExGetParent,StoreExSetParent,StoreExGetChild, StoreExPurge};
 
+                pub mod keys {
+                    use rl_ecs::{{key::KeyExt}, stores::UniqueStoreKey};
+                    use rl_ecs::slotmap::{new_key_type, Key};
+                    #(#comp_keys)*
+                    #(#unique_keys)*
+                }
+
                 #(#component_imports)*
+                #(#unique_imports)*
 
                 #mod_components
+                #mod_unique
                 pub use components::*;
+                pub use unique::*;
 
                 #world_struct
             }
@@ -52,25 +70,35 @@ impl CodeGenEcsExt for ValidatedEcs {
         let name = &self.name;
         let span = self.name.span();
 
-        let mut component_stores = Vec::new();
-        self.components
+        let component_stores: Vec<_> = self.components
             .values()
-            .for_each(|c| component_stores.push(c.gen_store()));
+            .map(|c| c.gen_store()).collect();
+        let unique_stores: Vec<_> = self.uniques
+            .values()
+            .map(|c| c.gen_store()).collect();
 
-        let mut components_new = Vec::new();
-        self.components
+        let components_new: Vec<_> = self.components
             .values()
-            .for_each(|c| components_new.push(c.gen_new()));
+            .map(|c| c.gen_new()).collect();
+        let uniques_new: Vec<_> = self.uniques
+            .values()
+            .map(|c| c.gen_new()).collect();
+        
+        let uniques_new_args: Vec<_> = self.uniques
+            .values()
+            .map(|c| c.gen_new_args()).collect();
 
         quote_spanned! {span =>
             pub struct #name {
                 #(#component_stores)*
+                #(#unique_stores)*
             }
             impl #name {
                 #[must_use]
-                pub fn new() -> Self {
+                pub fn new(#(#uniques_new_args)*) -> Self {
                     Self {
                         #(#components_new)*
+                        #(#uniques_new)*
                     }
                 }
             }

@@ -4,17 +4,16 @@ use syn::{spanned::Spanned, Ident};
 
 use crate::validation::{
     component::{Child, ChildType, Component},
-    AllComponents,
+    AllComponents, AllUniques,
 };
+use crate::codegen::unique::CodeGenUniqueNames;
 
-pub fn gen_mod_components(ecs: &Ident, all: &AllComponents) -> TokenStream {
+pub fn gen_mod_components(ecs: &Ident, all: &AllComponents, uniques: &AllUniques) -> TokenStream {
     let span = ecs.span();
 
     let component_imports: Vec<TokenStream> = all.values().map(|c| c.gen_imports()).collect();
 
-    let comp_store_atoms: Vec<TokenStream> = all.values().map(|c| c.gen_store_atom(all)).collect();
-
-    let comp_keys: Vec<TokenStream> = all.values().map(|c| c.gen_key()).collect();
+    let comp_store_atoms: Vec<TokenStream> = all.values().map(|c| c.gen_store_atom(all, uniques)).collect();
 
     let comp_ecs_impls: Vec<TokenStream> = all.values().map(|c| c.gen_ecs_impl(ecs, all)).collect();
 
@@ -26,10 +25,9 @@ pub fn gen_mod_components(ecs: &Ident, all: &AllComponents) -> TokenStream {
             use rl_ecs::stores::{StoreExBasic, StoreExBasicMut,
                 StoreExCreate,StoreExGetParent,StoreExSetParent,
                 StoreExGetChild, StoreExPurge};
-            use rl_ecs::slotmap::{new_key_type, Key, KeyData};
+            use rl_ecs::slotmap::{Key};
             use rl_ecs::arrayvec::{ArrayVec};
-
-            #(#comp_keys)*
+            use super::keys::*;
 
             #(#component_imports)*
             #(#comp_store_atoms)*
@@ -81,6 +79,7 @@ pub trait CodeGenComponent {
     fn gen_imports(&self) -> TokenStream;
     fn gen_store(&self) -> TokenStream;
     fn gen_new(&self) -> TokenStream;
+    fn gen_key(&self) -> TokenStream;
 }
 impl CodeGenComponent for Component {
     fn gen_imports(&self) -> TokenStream {
@@ -110,30 +109,6 @@ impl CodeGenComponent for Component {
             #store_name: #store_struct_name::new(),
         }
     }
-}
-
-trait CodeGenComponentPriv {
-    fn gen_key(&self) -> TokenStream;
-    fn gen_store_atom(&self, all: &AllComponents) -> TokenStream;
-    fn gen_ecs_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
-    fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
-    fn gen_parents_impl(&self, parent: &Ident) -> TokenStream;
-    fn gen_parents_enum_impl(&self, parent: &Ident, parents: &[TokenStream]) -> TokenStream;
-}
-
-trait CodeGenChild {
-    fn to_child_name(&self, all: &AllComponents) -> Ident;
-    fn gen_store_entry(&self, all: &AllComponents) -> TokenStream;
-    fn gen_new(&self, all: &AllComponents) -> TokenStream;
-    fn gen_get_child_impl(
-        &self,
-        key: &Ident,
-        store_name: &Ident,
-        all: &AllComponents,
-    ) -> TokenStream;
-}
-
-impl CodeGenComponentPriv for Component {
     fn gen_key(&self) -> TokenStream {
         let span = self.r#type.span();
         let key = &self.to_key_struct_name();
@@ -147,6 +122,29 @@ impl CodeGenComponentPriv for Component {
             }
         }
     }
+}
+
+trait CodeGenComponentPriv {
+    fn gen_store_atom(&self, all: &AllComponents, uniques: &AllUniques) -> TokenStream;
+    fn gen_ecs_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
+    fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
+    fn gen_parents_impl(&self, parent: &Ident) -> TokenStream;
+    fn gen_parents_enum_impl(&self, parent: &Ident, parents: &[TokenStream]) -> TokenStream;
+}
+
+pub trait CodeGenChild {
+    fn to_child_name(&self, all: &AllComponents) -> Ident;
+    fn gen_store_entry(&self, all: &AllComponents) -> TokenStream;
+    fn gen_new(&self, all: &AllComponents) -> TokenStream;
+    fn gen_get_child_impl(
+        &self,
+        key: &Ident,
+        store_name: &Ident,
+        all: &AllComponents,
+    ) -> TokenStream;
+}
+
+impl CodeGenComponentPriv for Component {
     fn gen_parents_impl(&self, parent: &Ident) -> TokenStream {
         let span = parent.span();
         let enum_key: Ident = self.to_parent_enum_key();
@@ -201,15 +199,12 @@ impl CodeGenComponentPriv for Component {
             }
         }
     }
-    fn gen_store_atom(&self, all: &AllComponents) -> TokenStream {
+    fn gen_store_atom(&self, all: &AllComponents, uniques: &AllUniques) -> TokenStream {
         let span = self.r#type.span();
         let typ = &self.r#type;
         let key = &self.to_key_struct_name();
         let child_atom_name = self.to_child_struct_name();
         let store_struct_name = self.to_store_struct_name();
-
-        //TODO: parent enum and struct member are useless when there is no parent.
-        // Do not generate them in that case
 
         let children: Vec<_> = self
             .children
@@ -226,7 +221,7 @@ impl CodeGenComponentPriv for Component {
             .collect();
 
         let parent = self.to_parent_enum();
-        let parents: Vec<TokenStream> = all
+        let mut parents: Vec<TokenStream> = all
             .values()
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
             .map(|c| {
@@ -238,6 +233,19 @@ impl CodeGenComponentPriv for Component {
                 }
             })
             .collect();
+        parents.extend(uniques
+            .values()
+            .filter(|c| c.children.iter().any(|c| c.id == self.id))
+            .map(|c| {
+                let enum_key: Ident = c.to_parent_enum_key();
+                let key = c.to_key_struct_name();
+
+                quote_spanned! {span =>
+                    #enum_key(#key),
+                }
+            })
+            .collect::<Vec<TokenStream>>()
+        );
 
         let parent_enum_impl = self.gen_parents_enum_impl(&parent, &parents);
         let parents_impl: Vec<TokenStream> = all

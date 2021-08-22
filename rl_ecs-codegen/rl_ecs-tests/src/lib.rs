@@ -173,16 +173,14 @@ create_ecs! {
 #[cfg(test)]
 mod tests {
     use crate::*;
-    use rl_ecs::stores::ResourceStore;
     use rl_ecs::stores::{
         StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent, StoreExPurge,
-        StoreExSetParent,
+        UniqueStore, UniqueStoreKey,
     };
 
     #[test]
     fn it_works() {
-        let mut ecs = Ecs::new();
-        // let mut ecs = Ecs::new(Player {}, Time {}, Counter { ctr: 0 });
+        let mut ecs = Ecs::new(Player {}, Time {}, Counter { ctr: 0 });
 
         let c1 = ecs.create(Creature {});
         let c1_s = ecs.get(c1).unwrap();
@@ -207,9 +205,12 @@ mod tests {
         assert!(c.is_none());
         assert!(l.is_none());
 
-        // let _: &u64 = ecs.get_resource();
-        // let _: &mut u64 = ecs.get_resource_mut();
-        // let _: &u32 = ecs.get_resource();
-        // let _: &mut u32 = ecs.get_resource_mut();
+        let _: &Player = ecs.get_unique();
+        let _: &mut Player = ecs.get_unique_mut();
+        let _: &Time = ecs.get_unique();
+        let _: &mut Time = ecs.get_unique_mut();
+        
+        let player_key = Player::unique_key();
+        // let s2 = ecs.create_and_attach(player_key, Stats {}).unwrap();
     }
 }
