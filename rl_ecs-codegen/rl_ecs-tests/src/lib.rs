@@ -174,7 +174,10 @@ create_ecs! {
 mod tests {
     use crate::*;
     use rl_ecs::stores::ResourceStore;
-    use rl_ecs::stores::{StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent, StoreExSetParent, StoreExPurge};
+    use rl_ecs::stores::{
+        StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent, StoreExPurge,
+        StoreExSetParent,
+    };
 
     #[test]
     fn it_works() {

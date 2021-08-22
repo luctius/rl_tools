@@ -4,7 +4,7 @@ use quote::{format_ident, quote_spanned};
 use syn::Ident;
 
 mod component;
-use component::CodeGenComponent;
+use component::{gen_mod_components, CodeGenComponent};
 
 impl From<ValidatedEcs> for proc_macro::TokenStream {
     fn from(ecs: ValidatedEcs) -> proc_macro::TokenStream {
@@ -22,47 +22,18 @@ impl From<ValidatedEcs> for TokenStream {
 
         let world_struct = ecs.gen_world_struct();
 
-        let mut component_imports = Vec::with_capacity(ecs.components.len());
-        ecs.components
-            .values()
-            .for_each(|c| component_imports.push(c.gen_imports()));
-
-        let mut store_atoms = Vec::with_capacity(ecs.components.len());
-        ecs.components
-            .values()
-            .for_each(|c| store_atoms.push(c.gen_store_atom(&ecs.components)));
-
-        let mut keys = Vec::with_capacity(ecs.components.len());
-        ecs.components.values().for_each(|c| keys.push(c.gen_key()));
-
-        let mut ecs_impls = Vec::with_capacity(ecs.components.len());
-        ecs.components
-            .values()
-            .for_each(|c| ecs_impls.push(c.gen_ecs_impl(name, &ecs.components)));
+        let component_imports: Vec<TokenStream> =
+            ecs.components.values().map(|c| c.gen_imports()).collect();
+        let mod_components = gen_mod_components(name, &ecs.components);
 
         quote_spanned! {span =>
             pub mod #mod_name {
                 use rl_ecs::key::KeyExt;
                 use rl_ecs::stores::{StoreExBasic,StoreExBasicMut, StoreExCreate,StoreExGetParent,StoreExSetParent,StoreExGetChild, StoreExPurge};
-                use components::InventoryKey;
 
                 #(#component_imports)*
 
-                mod components {
-                    use core::convert::{TryFrom, TryInto};
-                    use rl_ecs::key::KeyExt;
-                    use rl_ecs::stores::Store;
-                    use rl_ecs::stores::{StoreExBasic,StoreExBasicMut, StoreExCreate,StoreExGetParent,StoreExSetParent,StoreExGetChild, StoreExPurge};
-                    use rl_ecs::slotmap::{new_key_type, Key, KeyData};
-                    use rl_ecs::arrayvec::{ArrayVec};
-
-                    #(#keys)*
-
-                    #(#component_imports)*
-                    #(#store_atoms)*
-
-                    #(#ecs_impls)*
-                }
+                #mod_components
                 pub use components::*;
 
                 #world_struct

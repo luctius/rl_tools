@@ -1,13 +1,80 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote_spanned};
-use syn::{spanned::Spanned, Ident, TypePath};
+use syn::{spanned::Spanned, Ident};
 
 use crate::validation::{
     component::{Child, ChildType, Component},
     AllComponents,
 };
 
+pub fn gen_mod_components(ecs: &Ident, all: &AllComponents) -> TokenStream {
+    let span = ecs.span();
+
+    let component_imports: Vec<TokenStream> = all.values().map(|c| c.gen_imports()).collect();
+
+    let comp_store_atoms: Vec<TokenStream> = all.values().map(|c| c.gen_store_atom(all)).collect();
+
+    let comp_keys: Vec<TokenStream> = all.values().map(|c| c.gen_key()).collect();
+
+    let comp_ecs_impls: Vec<TokenStream> = all.values().map(|c| c.gen_ecs_impl(ecs, all)).collect();
+
+    quote_spanned! {span =>
+        mod components {
+            use core::convert::{TryFrom, TryInto};
+            use rl_ecs::key::KeyExt;
+            use rl_ecs::stores::Store;
+            use rl_ecs::stores::{StoreExBasic, StoreExBasicMut,
+                StoreExCreate,StoreExGetParent,StoreExSetParent,
+                StoreExGetChild, StoreExPurge};
+            use rl_ecs::slotmap::{new_key_type, Key, KeyData};
+            use rl_ecs::arrayvec::{ArrayVec};
+
+            #(#comp_keys)*
+
+            #(#component_imports)*
+            #(#comp_store_atoms)*
+
+            #(#comp_ecs_impls)*
+        }
+    }
+}
+
 pub trait CodeGenComponent {
+    fn gen_imports(&self) -> TokenStream;
+    fn gen_store(&self) -> TokenStream;
+    fn gen_new(&self) -> TokenStream;
+}
+impl CodeGenComponent for Component {
+    fn gen_imports(&self) -> TokenStream {
+        let span = self.r#type.span();
+        let path = &self.r#type;
+
+        quote_spanned! {span =>
+            #[allow(unused_import)]
+            use super::#path;
+        }
+    }
+    fn gen_store(&self) -> TokenStream {
+        let span = self.r#type.span();
+        let store_name = self.to_store_name();
+        let store_struct_name = self.to_store_struct_name();
+
+        quote_spanned! {span =>
+            #store_name: #store_struct_name,
+        }
+    }
+    fn gen_new(&self) -> TokenStream {
+        let span = self.r#type.span();
+        let store_name = self.to_store_name();
+        let store_struct_name = self.to_store_struct_name();
+
+        quote_spanned! {span =>
+            #store_name: #store_struct_name::new(),
+        }
+    }
+}
+
+trait CodeGenComponentPriv {
     fn to_store_name(&self) -> Ident;
     fn to_child_struct_name(&self) -> Ident;
     fn to_parent_enum_key(&self) -> Ident;
@@ -16,14 +83,17 @@ pub trait CodeGenComponent {
     fn to_store_struct_name(&self) -> Ident;
     fn gen_key(&self) -> TokenStream;
     fn gen_store_atom(&self, all: &AllComponents) -> TokenStream;
-    fn gen_store(&self) -> TokenStream;
-    fn gen_new(&self) -> TokenStream;
-    fn gen_imports(&self) -> TokenStream;
     fn gen_ecs_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
     fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
+    fn gen_parents_impl(
+        &self,
+        parent: &Ident,
+        key: &Ident,
+        store_struct_name: &Ident,
+    ) -> TokenStream;
 }
 
-pub trait CodeGenChild {
+trait CodeGenChild {
     fn to_child_name(&self, all: &AllComponents) -> Ident;
     fn gen_store_entry(&self, all: &AllComponents) -> TokenStream;
     fn gen_new(&self, all: &AllComponents) -> TokenStream;
@@ -35,7 +105,7 @@ pub trait CodeGenChild {
     ) -> TokenStream;
 }
 
-impl CodeGenComponent for Component {
+impl CodeGenComponentPriv for Component {
     fn to_child_struct_name(&self) -> Ident {
         let span = self.r#type.span();
         format_ident!("{}Children", self.name, span = span)
@@ -76,6 +146,64 @@ impl CodeGenComponent for Component {
             }
         }
     }
+    fn gen_parents_impl(
+        &self,
+        parent: &Ident,
+        key: &Ident,
+        store_struct_name: &Ident,
+    ) -> TokenStream {
+        let span = parent.span();
+        let enum_key: Ident = self.to_parent_enum_key();
+        let pkey = self.to_key_struct_name();
+
+        quote_spanned! {span =>
+            impl From<#pkey> for #parent {
+                fn from(k: #pkey) -> Self {
+                    Self::#enum_key(k)
+                }
+            }
+            impl TryFrom<#parent> for #pkey {
+                type Error = ();
+                fn try_from(p: #parent) -> Result<Self, Self::Error> {
+                    match p {
+                        #parent::#enum_key(k) => Ok(k),
+                        _ => Err(())
+                    }
+                }
+            }
+            impl StoreExGetParent<#key, #pkey> for #store_struct_name {
+                #[inline]
+                fn get_parent(&self, child: #key) -> Option<#pkey> {
+                    self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
+                }
+            }
+            #[doc(hidden)]
+            impl StoreExSetParent<#key, #pkey> for #store_struct_name {
+                #[inline]
+                #[doc(hidden)]
+                fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
+                    self.0.id.get_mut(child).map(|id| {
+                        if id.parent == parent.into() {
+                            id.parent = #parent::None;
+                            true
+                        }
+                        else {false}
+                    }).unwrap_or(false)
+                }
+                #[inline]
+                #[doc(hidden)]
+                fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
+                    self.0.id.get_mut(child).map(|id| {
+                        if !id.parent.is_some() {
+                            id.parent = parent.into();
+                            true
+                        }
+                        else {false}
+                    }).unwrap_or(false)
+                }
+            }
+        }
+    }
     fn gen_store_atom(&self, all: &AllComponents) -> TokenStream {
         let span = self.r#type.span();
         let typ = &self.r#type;
@@ -83,20 +211,19 @@ impl CodeGenComponent for Component {
         let child_atom_name = self.to_child_struct_name();
         let store_struct_name = self.to_store_struct_name();
 
-        let mut children = Vec::new();
-        self.children
+        let children: Vec<_> = self
+            .children
             .iter()
-            .for_each(|c| children.push(c.gen_store_entry(all)));
+            .map(|c| c.gen_store_entry(all))
+            .collect();
 
-        let mut children_new = Vec::new();
-        self.children
-            .iter()
-            .for_each(|c| children_new.push(c.gen_new(all)));
+        let children_new: Vec<_> = self.children.iter().map(|c| c.gen_new(all)).collect();
 
-        let mut children_impl = Vec::new();
-        self.children
+        let children_impl: Vec<_> = self
+            .children
             .iter()
-            .for_each(|c| children_impl.push(c.gen_get_child_impl(key, &store_struct_name, all)));
+            .map(|c| c.gen_get_child_impl(key, &store_struct_name, all))
+            .collect();
 
         let parent = self.to_parent_enum();
         let parents: Vec<TokenStream> = all
@@ -115,60 +242,7 @@ impl CodeGenComponent for Component {
         let parents_impl: Vec<TokenStream> = all
             .values()
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
-            .map(|c| {
-                let enum_key: Ident = c.to_parent_enum_key();
-                let pkey = c.to_key_struct_name();
-                let parent_struct_name = c.to_store_struct_name();
-                let ptyp = &c.r#type;
-
-                quote_spanned! {span =>
-                    impl From<#pkey> for #parent {
-                        fn from(k: #pkey) -> Self {
-                            Self::#enum_key(k)
-                        }
-                    }
-                    impl TryFrom<#parent> for #pkey {
-                        type Error = ();
-                        fn try_from(p: #parent) -> Result<Self, Self::Error> {
-                            match p {
-                                #parent::#enum_key(k) => Ok(k),
-                                _ => Err(())
-                            }
-                        }
-                    }
-                    impl StoreExGetParent<#key, #pkey> for #store_struct_name {
-                        #[inline]
-                        fn get_parent(&self, child: #key) -> Option<#pkey> {
-                            self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
-                        }
-                    }
-                    #[doc(hidden)]
-                    impl StoreExSetParent<#key, #pkey> for #store_struct_name {
-                        #[inline]
-                        #[doc(hidden)]
-                        fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
-                            self.0.id.get_mut(child).map(|id| {
-                                if id.parent == parent.into() {
-                                    id.parent = #parent::None;
-                                    true
-                                }
-                                else {false}
-                            }).unwrap_or(false)
-                        }
-                        #[inline]
-                        #[doc(hidden)]
-                        fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
-                            self.0.id.get_mut(child).map(|id| {
-                                if !id.parent.is_some() {
-                                    id.parent = parent.into();
-                                    true
-                                }
-                                else {false}
-                            }).unwrap_or(false)
-                        }
-                    }
-                }
-            })
+            .map(|c| c.gen_parents_impl(&parent, key, &store_struct_name))
             .collect();
 
         quote_spanned! {span =>
@@ -256,37 +330,10 @@ impl CodeGenComponent for Component {
             #(#children_impl)*
         }
     }
-    fn gen_store(&self) -> TokenStream {
-        let span = self.r#type.span();
-        let store_name = self.to_store_name();
-        let store_struct_name = self.to_store_struct_name();
-
-        quote_spanned! {span =>
-            #store_name: #store_struct_name,
-        }
-    }
-    fn gen_new(&self) -> TokenStream {
-        let span = self.r#type.span();
-        let store_name = self.to_store_name();
-        let store_struct_name = self.to_store_struct_name();
-
-        quote_spanned! {span =>
-            #store_name: #store_struct_name::new(),
-        }
-    }
-    fn gen_imports(&self) -> TokenStream {
-        let span = self.r#type.span();
-        let path = &self.r#type;
-
-        quote_spanned! {span =>
-            #[allow(unused_import)]
-            use super::#path;
-        }
-    }
     fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream {
         let span = self.r#type.span();
         let key = &self.to_key_struct_name();
-        let parent = self.to_parent_enum();
+        // let parent = self.to_parent_enum();
         let store_name = self.to_store_name();
 
         let clear_parents: Vec<TokenStream> = all
@@ -338,14 +385,12 @@ impl CodeGenComponent for Component {
         let span = self.r#type.span();
         let typ = &self.r#type;
         let key = &self.to_key_struct_name();
-        let child_atom_name = self.to_child_struct_name();
         let store_name = self.to_store_name();
-        let store_struct_name = self.to_store_struct_name();
-        let parent = self.to_parent_enum();
 
-        let mut get_child_vec = Vec::with_capacity(self.children.len());
-        self.children.iter().for_each(|c| {
-            get_child_vec.push({
+        let get_child_vec: Vec<_> = self
+            .children
+            .iter()
+            .map(|c| {
                 let ckey = all.get(&c.id).unwrap().to_key_struct_name();
 
                 quote_spanned! {span =>
@@ -362,13 +407,12 @@ impl CodeGenComponent for Component {
                     }
                 }
             })
-        });
+            .collect();
 
         let parents_impl: Vec<TokenStream> = all
             .values()
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
             .map(|c| {
-                let enum_key: Ident = c.to_parent_enum_key();
                 let pkey = c.to_key_struct_name();
 
                 quote_spanned! {span =>
@@ -396,7 +440,7 @@ impl CodeGenComponent for Component {
             .collect();
 
         let purge_impl = self.gen_ecs_purge_impl(ecs, all);
-        
+
         quote_spanned! {span =>
             impl StoreExBasic<#typ, #key> for super::#ecs {
                 #[inline]
@@ -439,10 +483,9 @@ impl CodeGenChild for Child {
     fn gen_new(&self, all: &AllComponents) -> TokenStream {
         let span = self.span;
         let name = self.to_child_name(all);
-        let key = all.get(&self.id).unwrap().to_key_struct_name();
 
         match self.child_type {
-            ChildType::Array(sz) => {
+            ChildType::Array(_) => {
                 quote_spanned! {span =>
                     #name: ArrayVec::new(),
                 }
