@@ -154,15 +154,15 @@ impl CodeGenComponentPriv for Component {
     ) -> TokenStream {
         let span = parent.span();
         let enum_key: Ident = self.to_parent_enum_key();
-        let pkey = self.to_key_struct_name();
+        let parent_key = self.to_key_struct_name();
 
         quote_spanned! {span =>
-            impl From<#pkey> for #parent {
-                fn from(k: #pkey) -> Self {
+            impl From<#parent_key> for #parent {
+                fn from(k: #parent_key) -> Self {
                     Self::#enum_key(k)
                 }
             }
-            impl TryFrom<#parent> for #pkey {
+            impl TryFrom<#parent> for #parent_key {
                 type Error = ();
                 fn try_from(p: #parent) -> Result<Self, Self::Error> {
                     match p {
@@ -171,37 +171,6 @@ impl CodeGenComponentPriv for Component {
                     }
                 }
             }
-            // impl StoreExGetParent<#key, #pkey> for #store_struct_name {
-            //     #[inline]
-            //     fn get_parent(&self, child: #key) -> Option<#pkey> {
-            //         self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
-            //     }
-            // }
-            // #[doc(hidden)]
-            // impl StoreExSetParent<#key, #pkey> for #store_struct_name {
-            //     #[inline]
-            //     #[doc(hidden)]
-            //     fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
-            //         self.0.id.get_mut(child).map(|id| {
-            //             if id.parent == parent.into() {
-            //                 id.parent = #parent::None;
-            //                 true
-            //             }
-            //             else {false}
-            //         }).unwrap_or(false)
-            //     }
-            //     #[inline]
-            //     #[doc(hidden)]
-            //     fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
-            //         self.0.id.get_mut(child).map(|id| {
-            //             if !id.parent.is_some() {
-            //                 id.parent = parent.into();
-            //                 true
-            //             }
-            //             else {false}
-            //         }).unwrap_or(false)
-            //     }
-            // }
         }
     }
     fn gen_store_atom(&self, all: &AllComponents) -> TokenStream {
@@ -333,19 +302,18 @@ impl CodeGenComponentPriv for Component {
     fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream {
         let span = self.r#type.span();
         let key = &self.to_key_struct_name();
-        // let parent = self.to_parent_enum();
         let store_name = self.to_store_name();
 
         let clear_parents: Vec<TokenStream> = all
             .values()
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
             .map(|c| {
-                let pkey = c.to_key_struct_name();
+                let parent_key = c.to_key_struct_name();
 
                 quote_spanned! {span =>
-                    let pkey: Option<#pkey> = self.get_parent(key);
-                    if let Some(pkey) = pkey {
-                        self.clear_parent(key, pkey);
+                    let parent_key: Option<#parent_key> = self.get_parent(key);
+                    if let Some(parent_key) = parent_key {
+                        self.clear_parent(key, parent_key);
                     }
                 }
             })
@@ -355,13 +323,13 @@ impl CodeGenComponentPriv for Component {
             .children
             .iter()
             .map(|c| {
-                let ckey = all.get(&c.id).unwrap().to_key_struct_name();
+                let child_key = all.get(&c.id).unwrap().to_key_struct_name();
 
                 quote_spanned! {span =>
-                    let children: Option<Vec<#ckey>> = self.get_child(key).map(|k| k.map(|k| *k).collect());
+                    let children: Option<Vec<#child_key>> = self.get_child(key).map(|k| k.map(|k| *k).collect());
                     if let Some(children) = children {
-                        for ckey in children {
-                            self.purge(ckey);
+                        for child_key in children {
+                            self.purge(child_key);
                         }
                     }
                 }
@@ -391,17 +359,17 @@ impl CodeGenComponentPriv for Component {
             .children
             .iter()
             .map(|c| {
-                let ckey = all.get(&c.id).unwrap().to_key_struct_name();
+                let child_key = all.get(&c.id).unwrap().to_key_struct_name();
 
                 quote_spanned! {span =>
-                    impl StoreExGetChild<#key, #ckey> for super::#ecs {
-                        fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#ckey>> {
+                    impl StoreExGetChild<#key, #child_key> for super::#ecs {
+                        fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
                             self.#store_name.get_child(parent)
                         }
-                        fn set_child(&mut self, parent: #key, child: #ckey) -> bool {
+                        fn set_child(&mut self, parent: #key, child: #child_key) -> bool {
                             self.#store_name.set_child(parent, child)
                         }
-                        fn clear_child(&mut self, parent: #key, child: #ckey) -> bool {
+                        fn clear_child(&mut self, parent: #key, child: #child_key) -> bool {
                             self.#store_name.clear_child(parent, child)
                         }
                     }
@@ -409,60 +377,30 @@ impl CodeGenComponentPriv for Component {
             })
             .collect();
 
-        // let parents_impl: Vec<TokenStream> = all
-        //     .values()
-        //     .filter(|c| c.children.iter().any(|c| c.id == self.id))
-        //     .map(|c| {
-        //         let pkey = c.to_key_struct_name();
-
-        //         quote_spanned! {span =>
-        //             impl StoreExGetParent<#key, #pkey> for super::#ecs {
-        //                 #[inline]
-        //                 fn get_parent(&self, child: #key) -> Option<#pkey> {
-        //                     self.#store_name.get_parent(child)
-        //                 }
-        //             }
-        //             #[doc(hidden)]
-        //             impl StoreExSetParent<#key, #pkey> for super::#ecs {
-        //                 #[doc(hidden)]
-        //                 #[inline]
-        //                 fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
-        //                     self.#store_name.clear_parent(child, parent)
-        //                 }
-        //                 #[doc(hidden)]
-        //                 #[inline]
-        //                 fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
-        //                     self.#store_name.set_parent(child, parent)
-        //                 }
-        //             }
-        //         }
-        //     })
-        //     .collect();
-
         let parents_impl: Vec<TokenStream> = self
             .children
             .iter()
             .map(|c| {
-                let ckey = all.get(&c.id).unwrap().to_key_struct_name();
+                let child_key = all.get(&c.id).unwrap().to_key_struct_name();
                 let c_store_name = all.get(&c.id).unwrap().to_store_name();
 
                 quote_spanned! {span =>
-                    impl StoreExGetParent<#ckey, #key> for super::#ecs {
+                    impl StoreExGetParent<#child_key, #key> for super::#ecs {
                         #[inline]
-                        fn get_parent(&self, child: #ckey) -> Option<#key> {
+                        fn get_parent(&self, child: #child_key) -> Option<#key> {
                             self.#c_store_name.get_parent(child)
                         }
                     }
                     #[doc(hidden)]
-                    impl StoreExSetParent<#ckey, #key> for super::#ecs {
+                    impl StoreExSetParent<#child_key, #key> for super::#ecs {
                         #[doc(hidden)]
                         #[inline]
-                        fn clear_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                        fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
                             self.#c_store_name.clear_parent(child, parent)
                         }
                         #[doc(hidden)]
                         #[inline]
-                        fn set_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                        fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
                             self.#c_store_name.set_parent(child, parent)
                         }
                     }
@@ -554,18 +492,21 @@ impl CodeGenChild for Child {
         all: &AllComponents,
     ) -> TokenStream {
         let span = self.span;
-        let ckey = all.get(&self.id).unwrap().to_key_struct_name();
+        let child_key = all.get(&self.id).unwrap().to_key_struct_name();
         let cname = self.to_child_name(all);
         let c_store_name = all.get(&self.id).unwrap().to_store_struct_name();
 
         quote_spanned! {span =>
-            impl StoreExGetChild<#key, #ckey> for #store_name
+            impl StoreExGetChild<#key, #child_key> for #store_name
                 where #key: Key + KeyExt,
-                      #ckey: Key + KeyExt, {
-                fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#ckey>> {
+                      #child_key: Key + KeyExt, {
+                #[inline]
+                fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
                     self.0.id.get(parent).map(|cidt| if cidt.#cname.is_empty() {None} else { Some(cidt.#cname.iter())} ).flatten()
                 }
-                fn set_child(&mut self, parent: #key, child: #ckey) -> bool {
+                #[inline]
+                #[doc(hidden)]
+                fn set_child(&mut self, parent: #key, child: #child_key) -> bool {
                     let id_store = &mut self.0.id;
                     self.0.id.get_mut(parent).map(|id| {
                         if id.#cname.contains(&child) {
@@ -577,7 +518,9 @@ impl CodeGenChild for Child {
                         }
                     }).unwrap_or(false)
                 }
-                fn clear_child(&mut self, parent: #key, child: #ckey) -> bool {
+                #[inline]
+                #[doc(hidden)]
+                fn clear_child(&mut self, parent: #key, child: #child_key) -> bool {
                     let id_store = &mut self.0.id;
                     self.0.id.get_mut(parent).map(|id| {
                         if id.#cname.contains(&child) {
@@ -594,17 +537,17 @@ impl CodeGenChild for Child {
                     }).unwrap_or(false)
                 }
             }
-            impl StoreExGetParent<#ckey, #key> for #c_store_name {
+            impl StoreExGetParent<#child_key, #key> for #c_store_name {
                 #[inline]
-                fn get_parent(&self, child: #ckey) -> Option<#key> {
+                fn get_parent(&self, child: #child_key) -> Option<#key> {
                     self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
                 }
             }
             #[doc(hidden)]
-            impl StoreExSetParent<#ckey, #key> for #c_store_name {
+            impl StoreExSetParent<#child_key, #key> for #c_store_name {
                 #[inline]
                 #[doc(hidden)]
-                fn clear_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
                     self.0.id.get_mut(child).map(|id| {
                         if id.parent == parent.into() {
                             id.parent = Default::default();
@@ -615,7 +558,7 @@ impl CodeGenChild for Child {
                 }
                 #[inline]
                 #[doc(hidden)]
-                fn set_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
                     self.0.id.get_mut(child).map(|id| {
                         if !id.parent.is_some() {
                             id.parent = parent.into();
