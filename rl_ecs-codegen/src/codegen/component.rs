@@ -171,7 +171,7 @@ impl CodeGenComponentPriv for Component {
     }
     fn gen_parents_enum_impl(&self, parent: &Ident, parents: &[TokenStream]) -> TokenStream {
         let span = self.r#type.span();
-        
+
         if parents.is_empty() {
             quote_spanned! {span => }
         } else {
@@ -245,7 +245,6 @@ impl CodeGenComponentPriv for Component {
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
             .map(|c| c.gen_parents_impl(&parent))
             .collect();
-        
 
         let parent_enum_type = if parents.is_empty() {
             quote_spanned! {span => }
@@ -477,6 +476,12 @@ impl CodeGenChild for Child {
         let name = self.to_child_name(all);
 
         match self.child_type {
+            ChildType::Single => {
+                let key = all.get(&self.id).unwrap().to_key_struct_name();
+                quote_spanned! {span =>
+                    #name: [#key::null()],
+                }
+            }
             ChildType::Array(_) => {
                 quote_spanned! {span =>
                     #name: ArrayVec::new(),
@@ -496,15 +501,14 @@ impl CodeGenChild for Child {
         let typ = quote_spanned! {span => #key};
 
         match self.child_type {
+            ChildType::Single => {
+                quote_spanned! {span => #name: [#key;1], }
+            }
             ChildType::Array(sz) => {
-                quote_spanned! {span =>
-                    #name: ArrayVec::<#typ,#sz>,
-                }
+                quote_spanned! {span => #name: ArrayVec::<#typ,#sz>, }
             }
             ChildType::Vec => {
-                quote_spanned! {span =>
-                    #name: Vec<#typ>,
-                }
+                quote_spanned! {span => #name: Vec<#typ>, }
             }
         }
     }
@@ -519,26 +523,60 @@ impl CodeGenChild for Child {
         let cname = self.to_child_name(all);
         let c_store_name = all.get(&self.id).unwrap().to_store_struct_name();
 
+        let get_child_body = match self.child_type {
+            ChildType::Single => quote_spanned! {span =>
+                if cidt.#cname[0].is_null() {None} else { Some(cidt.#cname.iter())}
+            },
+            ChildType::Array(_) | ChildType::Vec => quote_spanned! {span =>
+                if cidt.#cname.is_empty() {None} else { Some(cidt.#cname.iter())}
+            },
+        };
+
+        let set_child_body = match self.child_type {
+            ChildType::Single => quote_spanned! { span =>
+                if id.#cname[0].is_null() { id.#cname[0] = child; true }
+                else { false }
+            },
+            ChildType::Array(_) => quote_spanned! {span =>
+                if id.#cname.contains(&child) || id.#cname.is_full() { false }
+                else { id.#cname.push(child); true }
+            },
+            ChildType::Vec => quote_spanned! {span =>
+                if id.#cname.contains(&child) { false }
+                else { id.#cname.push(child); true }
+            },
+        };
+
+        let clear_child_body = match self.child_type {
+            ChildType::Single => quote_spanned! {span =>
+                if id.#cname[0].is_null() { false }
+                else { id.#cname[0] = #child_key::null(); true }
+            },
+            ChildType::Array(_) | ChildType::Vec => quote_spanned! {span =>
+                if id.#cname.contains(&child) {
+                    let idx = id.#cname.iter().enumerate().find(|(i,k)| **k == child).map(|(i,k)|i);
+                    if let Some(idx) = idx { id.#cname.swap_remove(idx); true }
+                    else {false}
+                } else { false }
+            },
+        };
+
         quote_spanned! {span =>
             impl StoreExGetChild<#key, #child_key> for #store_name
                 where #key: Key + KeyExt,
                       #child_key: Key + KeyExt, {
                 #[inline]
                 fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
-                    self.0.id.get(parent).map(|cidt| if cidt.#cname.is_empty() {None} else { Some(cidt.#cname.iter())} ).flatten()
+                    self.0.id.get(parent).map(|cidt|
+                        #get_child_body
+                    ).flatten()
                 }
                 #[inline]
                 #[doc(hidden)]
                 fn set_child(&mut self, parent: #key, child: #child_key) -> bool {
                     let id_store = &mut self.0.id;
                     self.0.id.get_mut(parent).map(|id| {
-                        if id.#cname.contains(&child) {
-                            false
-                        }
-                        else {
-                            id.#cname.push(child);
-                            true
-                        }
+                        #set_child_body
                     }).unwrap_or(false)
                 }
                 #[inline]
@@ -546,17 +584,7 @@ impl CodeGenChild for Child {
                 fn clear_child(&mut self, parent: #key, child: #child_key) -> bool {
                     let id_store = &mut self.0.id;
                     self.0.id.get_mut(parent).map(|id| {
-                        if id.#cname.contains(&child) {
-                            let idx = id.#cname.iter().enumerate().find(|(i,k)| **k == child).map(|(i,k)|i);
-                            if let Some(idx) = idx {
-                                id.#cname.swap_remove(idx);
-                                true
-                            }
-                            else {false}
-                        }
-                        else {
-                            false
-                        }
+                        #clear_child_body
                     }).unwrap_or(false)
                 }
             }
