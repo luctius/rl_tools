@@ -143,12 +143,14 @@ impl Component {
 
 #[derive(Copy, Clone, Debug)]
 pub enum ChildType {
+    // Single,
     Array(usize),
     Vec,
 }
 impl From<parsing::component::ChildType> for ChildType {
     fn from(ct: parsing::component::ChildType) -> Self {
         match ct {
+            parsing::component::ChildType::Single => ChildType::Array(1),
             parsing::component::ChildType::Array(sz) => ChildType::Array(sz),
             parsing::component::ChildType::Vec => ChildType::Vec,
         }

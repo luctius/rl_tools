@@ -117,7 +117,8 @@ trait CodeGenComponentPriv {
     fn gen_store_atom(&self, all: &AllComponents) -> TokenStream;
     fn gen_ecs_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
     fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
-    fn gen_parents_impl(&self, parent: &Ident, key: &Ident) -> TokenStream;
+    fn gen_parents_impl(&self, parent: &Ident) -> TokenStream;
+    fn gen_parents_enum_impl(&self, parent: &Ident, parents: &[TokenStream]) -> TokenStream;
 }
 
 trait CodeGenChild {
@@ -146,7 +147,7 @@ impl CodeGenComponentPriv for Component {
             }
         }
     }
-    fn gen_parents_impl(&self, parent: &Ident, key: &Ident) -> TokenStream {
+    fn gen_parents_impl(&self, parent: &Ident) -> TokenStream {
         let span = parent.span();
         let enum_key: Ident = self.to_parent_enum_key();
         let parent_key = self.to_key_struct_name();
@@ -163,6 +164,38 @@ impl CodeGenComponentPriv for Component {
                     match p {
                         #parent::#enum_key(k) => Ok(k),
                         _ => Err(())
+                    }
+                }
+            }
+        }
+    }
+    fn gen_parents_enum_impl(&self, parent: &Ident, parents: &[TokenStream]) -> TokenStream {
+        let span = self.r#type.span();
+        
+        if parents.is_empty() {
+            quote_spanned! {span => }
+        } else {
+            quote_spanned! {span =>
+                #[doc(hidden)]
+                #[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
+                pub(super) enum #parent {
+                    None,
+                    #(#parents)*
+                }
+                #[doc(hidden)]
+                impl #parent {
+                    #[doc(hidden)]
+                    #[inline]
+                    fn is_none(&self) -> bool {
+                        if *self == #parent::None {true} else {false}
+                    }
+                }
+
+                #[doc(hidden)]
+                impl Default for #parent {
+                    #[inline]
+                    fn default() -> Self {
+                        Self::None
                     }
                 }
             }
@@ -206,55 +239,28 @@ impl CodeGenComponentPriv for Component {
             })
             .collect();
 
+        let parent_enum_impl = self.gen_parents_enum_impl(&parent, &parents);
         let parents_impl: Vec<TokenStream> = all
             .values()
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
-            .map(|c| c.gen_parents_impl(&parent, key))
+            .map(|c| c.gen_parents_impl(&parent))
             .collect();
+        
 
-        let parent_enum_impl = if parents.len() > 0 {
-            quote_spanned! {span =>
-                #[doc(hidden)]
-                #[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
-                pub(super) enum #parent {
-                    None,
-                    #(#parents)*
-                }
-                #[doc(hidden)]
-                impl #parent {
-                    #[doc(hidden)]
-                    #[inline]
-                    fn is_none(&self) -> bool {
-                        if *self == #parent::None {true} else {false}
-                    }
-                }
-
-                #[doc(hidden)]
-                impl Default for #parent {
-                    #[inline]
-                    fn default() -> Self {
-                        Self::None
-                    }
-                }
-            }
-        } else {
+        let parent_enum_type = if parents.is_empty() {
             quote_spanned! {span => }
-        };
-
-        let parent_enum_type = if parents.len() > 0 {
+        } else {
             quote_spanned! {span =>
                 __parent: #parent,
             }
-        } else {
-            quote_spanned! {span => }
         };
 
-        let parent_enum_init = if parents.len() > 0 {
+        let parent_enum_init = if parents.is_empty() {
+            quote_spanned! {span => }
+        } else {
             quote_spanned! {span =>
                 __parent: #parent::None,
             }
-        } else {
-            quote_spanned! {span => }
         };
 
         quote_spanned! {span =>
@@ -340,11 +346,14 @@ impl CodeGenComponentPriv for Component {
                 let child_key = all.get(&c.id).unwrap().to_key_struct_name();
 
                 quote_spanned! {span =>
-                    let children: Option<Vec<#child_key>> = self.get_child(key).map(|k| k.map(|k| *k).collect());
-                    if let Some(children) = children {
-                        for child_key in children {
+                    let mut counter = 0;
+                    loop {
+                        let child: Option<#child_key> = self.get_child(key).map(|k| k.map(|k| *k).nth(counter)).flatten();
+                        if let Some(child_key) = child {
                             self.purge(child_key);
+                            counter += 1;
                         }
+                        else {break;}
                     }
                 }
             })

@@ -45,6 +45,7 @@ impl Parse for Component {
 
 #[derive(Copy, Clone, Debug)]
 pub enum ChildType {
+    Single,
     Array(usize),
     Vec,
 }
@@ -59,7 +60,7 @@ impl Parse for Child {
         if let Ok(ty) = input.parse() {
             Ok(Self {
                 r#type: ty,
-                child_type: ChildType::Array(1),
+                child_type: ChildType::Single,
             })
         } else {
             let child;
