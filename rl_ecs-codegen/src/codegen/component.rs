@@ -39,6 +39,44 @@ pub fn gen_mod_components(ecs: &Ident, all: &AllComponents) -> TokenStream {
     }
 }
 
+pub trait CodeGenComponentNames {
+    fn to_store_name(&self) -> Ident;
+    fn to_child_struct_name(&self) -> Ident;
+    fn to_parent_enum_key(&self) -> Ident;
+    fn to_parent_enum(&self) -> Ident;
+    fn to_key_struct_name(&self) -> Ident;
+    fn to_store_struct_name(&self) -> Ident;
+}
+impl CodeGenComponentNames for Component {
+    fn to_child_struct_name(&self) -> Ident {
+        let span = self.r#type.span();
+        format_ident!("__{}Children", self.name, span = span)
+    }
+    fn to_parent_enum_key(&self) -> Ident {
+        let span = self.r#type.span();
+        format_ident!("__{}", self.name, span = span)
+    }
+    fn to_parent_enum(&self) -> Ident {
+        let span = self.r#type.span();
+        format_ident!("__{}Parent", self.name, span = span)
+    }
+    fn to_store_struct_name(&self) -> Ident {
+        let span = self.r#type.span();
+        let mut name: Vec<char> = self.name.to_lowercase().chars().collect();
+        name[0] = name[0].to_uppercase().next().unwrap_or(name[0]);
+        let name: String = name.into_iter().collect();
+        format_ident!("__{}Store", name, span = span)
+    }
+    fn to_store_name(&self) -> Ident {
+        let span = self.r#type.span();
+        format_ident!("__{}_store", self.name.to_lowercase(), span = span)
+    }
+    fn to_key_struct_name(&self) -> Ident {
+        let span = self.r#type.span();
+        format_ident!("{}Key", self.name, span = span)
+    }
+}
+
 pub trait CodeGenComponent {
     fn gen_imports(&self) -> TokenStream;
     fn gen_store(&self) -> TokenStream;
@@ -75,22 +113,11 @@ impl CodeGenComponent for Component {
 }
 
 trait CodeGenComponentPriv {
-    fn to_store_name(&self) -> Ident;
-    fn to_child_struct_name(&self) -> Ident;
-    fn to_parent_enum_key(&self) -> Ident;
-    fn to_parent_enum(&self) -> Ident;
-    fn to_key_struct_name(&self) -> Ident;
-    fn to_store_struct_name(&self) -> Ident;
     fn gen_key(&self) -> TokenStream;
     fn gen_store_atom(&self, all: &AllComponents) -> TokenStream;
     fn gen_ecs_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
     fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
-    fn gen_parents_impl(
-        &self,
-        parent: &Ident,
-        key: &Ident,
-        store_struct_name: &Ident,
-    ) -> TokenStream;
+    fn gen_parents_impl(&self, parent: &Ident, key: &Ident) -> TokenStream;
 }
 
 trait CodeGenChild {
@@ -106,33 +133,6 @@ trait CodeGenChild {
 }
 
 impl CodeGenComponentPriv for Component {
-    fn to_child_struct_name(&self) -> Ident {
-        let span = self.r#type.span();
-        format_ident!("{}Children", self.name, span = span)
-    }
-    fn to_parent_enum_key(&self) -> Ident {
-        let span = self.r#type.span();
-        format_ident!("{}", self.name, span = span)
-    }
-    fn to_parent_enum(&self) -> Ident {
-        let span = self.r#type.span();
-        format_ident!("{}Parent", self.name, span = span)
-    }
-    fn to_store_struct_name(&self) -> Ident {
-        let span = self.r#type.span();
-        let mut name: Vec<char> = self.name.to_lowercase().chars().collect();
-        name[0] = name[0].to_uppercase().next().unwrap_or(name[0]);
-        let name: String = name.into_iter().collect();
-        format_ident!("{}Store", name, span = span)
-    }
-    fn to_store_name(&self) -> Ident {
-        let span = self.r#type.span();
-        format_ident!("{}_store", self.name.to_lowercase(), span = span)
-    }
-    fn to_key_struct_name(&self) -> Ident {
-        let span = self.r#type.span();
-        format_ident!("{}Key", self.name, span = span)
-    }
     fn gen_key(&self) -> TokenStream {
         let span = self.r#type.span();
         let key = &self.to_key_struct_name();
@@ -146,12 +146,7 @@ impl CodeGenComponentPriv for Component {
             }
         }
     }
-    fn gen_parents_impl(
-        &self,
-        parent: &Ident,
-        key: &Ident,
-        store_struct_name: &Ident,
-    ) -> TokenStream {
+    fn gen_parents_impl(&self, parent: &Ident, key: &Ident) -> TokenStream {
         let span = parent.span();
         let enum_key: Ident = self.to_parent_enum_key();
         let parent_key = self.to_key_struct_name();
@@ -179,6 +174,9 @@ impl CodeGenComponentPriv for Component {
         let key = &self.to_key_struct_name();
         let child_atom_name = self.to_child_struct_name();
         let store_struct_name = self.to_store_struct_name();
+
+        //TODO: parent enum and struct member are useless when there is no parent.
+        // Do not generate them in that case
 
         let children: Vec<_> = self
             .children
@@ -211,56 +209,72 @@ impl CodeGenComponentPriv for Component {
         let parents_impl: Vec<TokenStream> = all
             .values()
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
-            .map(|c| c.gen_parents_impl(&parent, key, &store_struct_name))
+            .map(|c| c.gen_parents_impl(&parent, key))
             .collect();
 
-        quote_spanned! {span =>
-            #[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
-            pub(super) enum #parent {
-                None,
-                #(#parents)*
+        let parent_enum_impl = if parents.len() > 0 {
+            quote_spanned! {span =>
+                #[doc(hidden)]
+                #[derive(Copy,Clone,Eq,PartialEq,Ord,PartialOrd,Hash,Debug)]
+                pub(super) enum #parent {
+                    None,
+                    #(#parents)*
+                }
+                #[doc(hidden)]
+                impl #parent {
+                    #[doc(hidden)]
+                    #[inline]
+                    fn is_none(&self) -> bool {
+                        if *self == #parent::None {true} else {false}
+                    }
+                }
+
+                #[doc(hidden)]
+                impl Default for #parent {
+                    #[inline]
+                    fn default() -> Self {
+                        Self::None
+                    }
+                }
             }
+        } else {
+            quote_spanned! {span => }
+        };
+
+        let parent_enum_type = if parents.len() > 0 {
+            quote_spanned! {span =>
+                __parent: #parent,
+            }
+        } else {
+            quote_spanned! {span => }
+        };
+
+        let parent_enum_init = if parents.len() > 0 {
+            quote_spanned! {span =>
+                __parent: #parent::None,
+            }
+        } else {
+            quote_spanned! {span => }
+        };
+
+        quote_spanned! {span =>
+            #parent_enum_impl
 
             #[doc(hidden)]
-            impl Default for #parent {
-                #[inline]
-                fn default() -> Self {
-                    Self::None
-                }
-            }
-            #[doc(hidden)]
-            impl From<KeyData> for #parent {
-                // Note: required by Key, but nonsensical in this context
-                #[inline]
-                fn from(kd: KeyData) -> Self {
-                    unimplemented!()
-                }
-            }
-            impl KeyExt for #parent {
-                #[inline]
-                fn is_some(&self) -> bool { !self.is_none() }
-                #[inline]
-                fn is_none(&self) -> bool { *self == #parent::None }
-            }
-            impl Key for #parent {
-                #[inline]
-                fn data(&self) -> KeyData {
-                    todo!()
-                }
-            }
             pub(super) struct #child_atom_name {
-                parent: #parent,
+                #parent_enum_type
                 #(#children)*
             }
             impl #child_atom_name {
                 #[inline]
                 pub fn new() -> Self {
                     Self {
-                        parent: #parent::None,
+                        #parent_enum_init
                         #(#children_new)*
                     }
                 }
             }
+            #[doc(hidden)]
             pub(super) struct #store_struct_name(Store<#typ,#child_atom_name,#key>);
             impl #store_struct_name {
                 pub fn new() -> Self {
@@ -447,7 +461,7 @@ impl CodeGenChild for Child {
     fn to_child_name(&self, all: &AllComponents) -> Ident {
         let span = self.span;
         let name = &all.get(&self.id).unwrap().name;
-        format_ident!("{}", name.to_lowercase(), span = span)
+        format_ident!("__{}", name.to_lowercase(), span = span)
     }
     fn gen_new(&self, all: &AllComponents) -> TokenStream {
         let span = self.span;
@@ -540,7 +554,7 @@ impl CodeGenChild for Child {
             impl StoreExGetParent<#child_key, #key> for #c_store_name {
                 #[inline]
                 fn get_parent(&self, child: #child_key) -> Option<#key> {
-                    self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
+                    self.0.id.get(child).map(|id| id.__parent.try_into().ok() ).flatten()
                 }
             }
             #[doc(hidden)]
@@ -549,8 +563,8 @@ impl CodeGenChild for Child {
                 #[doc(hidden)]
                 fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
                     self.0.id.get_mut(child).map(|id| {
-                        if id.parent == parent.into() {
-                            id.parent = Default::default();
+                        if id.__parent == parent.into() {
+                            id.__parent = Default::default();
                             true
                         }
                         else {false}
@@ -560,8 +574,8 @@ impl CodeGenChild for Child {
                 #[doc(hidden)]
                 fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
                     self.0.id.get_mut(child).map(|id| {
-                        if !id.parent.is_some() {
-                            id.parent = parent.into();
+                        if id.__parent.is_none() {
+                            id.__parent = parent.into();
                             true
                         }
                         else {false}
