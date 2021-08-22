@@ -171,37 +171,37 @@ impl CodeGenComponentPriv for Component {
                     }
                 }
             }
-            impl StoreExGetParent<#key, #pkey> for #store_struct_name {
-                #[inline]
-                fn get_parent(&self, child: #key) -> Option<#pkey> {
-                    self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
-                }
-            }
-            #[doc(hidden)]
-            impl StoreExSetParent<#key, #pkey> for #store_struct_name {
-                #[inline]
-                #[doc(hidden)]
-                fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
-                    self.0.id.get_mut(child).map(|id| {
-                        if id.parent == parent.into() {
-                            id.parent = #parent::None;
-                            true
-                        }
-                        else {false}
-                    }).unwrap_or(false)
-                }
-                #[inline]
-                #[doc(hidden)]
-                fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
-                    self.0.id.get_mut(child).map(|id| {
-                        if !id.parent.is_some() {
-                            id.parent = parent.into();
-                            true
-                        }
-                        else {false}
-                    }).unwrap_or(false)
-                }
-            }
+            // impl StoreExGetParent<#key, #pkey> for #store_struct_name {
+            //     #[inline]
+            //     fn get_parent(&self, child: #key) -> Option<#pkey> {
+            //         self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
+            //     }
+            // }
+            // #[doc(hidden)]
+            // impl StoreExSetParent<#key, #pkey> for #store_struct_name {
+            //     #[inline]
+            //     #[doc(hidden)]
+            //     fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
+            //         self.0.id.get_mut(child).map(|id| {
+            //             if id.parent == parent.into() {
+            //                 id.parent = #parent::None;
+            //                 true
+            //             }
+            //             else {false}
+            //         }).unwrap_or(false)
+            //     }
+            //     #[inline]
+            //     #[doc(hidden)]
+            //     fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
+            //         self.0.id.get_mut(child).map(|id| {
+            //             if !id.parent.is_some() {
+            //                 id.parent = parent.into();
+            //                 true
+            //             }
+            //             else {false}
+            //         }).unwrap_or(false)
+            //     }
+            // }
         }
     }
     fn gen_store_atom(&self, all: &AllComponents) -> TokenStream {
@@ -409,30 +409,61 @@ impl CodeGenComponentPriv for Component {
             })
             .collect();
 
-        let parents_impl: Vec<TokenStream> = all
-            .values()
-            .filter(|c| c.children.iter().any(|c| c.id == self.id))
+        // let parents_impl: Vec<TokenStream> = all
+        //     .values()
+        //     .filter(|c| c.children.iter().any(|c| c.id == self.id))
+        //     .map(|c| {
+        //         let pkey = c.to_key_struct_name();
+
+        //         quote_spanned! {span =>
+        //             impl StoreExGetParent<#key, #pkey> for super::#ecs {
+        //                 #[inline]
+        //                 fn get_parent(&self, child: #key) -> Option<#pkey> {
+        //                     self.#store_name.get_parent(child)
+        //                 }
+        //             }
+        //             #[doc(hidden)]
+        //             impl StoreExSetParent<#key, #pkey> for super::#ecs {
+        //                 #[doc(hidden)]
+        //                 #[inline]
+        //                 fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
+        //                     self.#store_name.clear_parent(child, parent)
+        //                 }
+        //                 #[doc(hidden)]
+        //                 #[inline]
+        //                 fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
+        //                     self.#store_name.set_parent(child, parent)
+        //                 }
+        //             }
+        //         }
+        //     })
+        //     .collect();
+
+        let parents_impl: Vec<TokenStream> = self
+            .children
+            .iter()
             .map(|c| {
-                let pkey = c.to_key_struct_name();
+                let ckey = all.get(&c.id).unwrap().to_key_struct_name();
+                let c_store_name = all.get(&c.id).unwrap().to_store_name();
 
                 quote_spanned! {span =>
-                    impl StoreExGetParent<#key, #pkey> for super::#ecs {
+                    impl StoreExGetParent<#ckey, #key> for super::#ecs {
                         #[inline]
-                        fn get_parent(&self, child: #key) -> Option<#pkey> {
-                            self.#store_name.get_parent(child)
+                        fn get_parent(&self, child: #ckey) -> Option<#key> {
+                            self.#c_store_name.get_parent(child)
                         }
                     }
                     #[doc(hidden)]
-                    impl StoreExSetParent<#key, #pkey> for super::#ecs {
+                    impl StoreExSetParent<#ckey, #key> for super::#ecs {
                         #[doc(hidden)]
                         #[inline]
-                        fn clear_parent(&mut self, child: #key, parent: #pkey) -> bool {
-                            self.#store_name.clear_parent(child, parent)
+                        fn clear_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                            self.#c_store_name.clear_parent(child, parent)
                         }
                         #[doc(hidden)]
                         #[inline]
-                        fn set_parent(&mut self, child: #key, parent: #pkey) -> bool {
-                            self.#store_name.set_parent(child, parent)
+                        fn set_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                            self.#c_store_name.set_parent(child, parent)
                         }
                     }
                 }
@@ -525,6 +556,7 @@ impl CodeGenChild for Child {
         let span = self.span;
         let ckey = all.get(&self.id).unwrap().to_key_struct_name();
         let cname = self.to_child_name(all);
+        let c_store_name = all.get(&self.id).unwrap().to_store_struct_name();
 
         quote_spanned! {span =>
             impl StoreExGetChild<#key, #ckey> for #store_name
@@ -559,6 +591,37 @@ impl CodeGenChild for Child {
                         else {
                             false
                         }
+                    }).unwrap_or(false)
+                }
+            }
+            impl StoreExGetParent<#ckey, #key> for #c_store_name {
+                #[inline]
+                fn get_parent(&self, child: #ckey) -> Option<#key> {
+                    self.0.id.get(child).map(|id| id.parent.try_into().ok() ).flatten()
+                }
+            }
+            #[doc(hidden)]
+            impl StoreExSetParent<#ckey, #key> for #c_store_name {
+                #[inline]
+                #[doc(hidden)]
+                fn clear_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                    self.0.id.get_mut(child).map(|id| {
+                        if id.parent == parent.into() {
+                            id.parent = Default::default();
+                            true
+                        }
+                        else {false}
+                    }).unwrap_or(false)
+                }
+                #[inline]
+                #[doc(hidden)]
+                fn set_parent(&mut self, child: #ckey, parent: #key) -> bool {
+                    self.0.id.get_mut(child).map(|id| {
+                        if !id.parent.is_some() {
+                            id.parent = parent.into();
+                            true
+                        }
+                        else {false}
                     }).unwrap_or(false)
                 }
             }
