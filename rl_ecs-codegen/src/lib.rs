@@ -1,11 +1,8 @@
 #![feature(proc_macro_diagnostic)]
 
 use proc_macro::TokenStream;
-use quote::{format_ident, quote, quote_spanned};
-use syn::spanned::Spanned;
-use syn::{parse_macro_input, Type};
+use syn::parse_macro_input;
 
-use std::collections::HashSet;
 use std::convert::TryFrom;
 
 pub(crate) type TypeId = usize;

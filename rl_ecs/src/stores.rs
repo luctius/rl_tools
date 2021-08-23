@@ -1,6 +1,6 @@
 use crate::key::KeyExt;
 use serde::{Deserialize, Serialize};
-use slotmap::{basic::Iter, SecondaryMap, SlotMap};
+use slotmap::{SecondaryMap, SlotMap};
 
 use slotmap::Key;
 

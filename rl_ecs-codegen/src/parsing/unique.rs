@@ -1,8 +1,7 @@
-use proc_macro2::Span;
 use syn::{
-    braced, bracketed,
+    braced,
     parse::{Parse, ParseStream, Result},
-    LitInt, Token, TypePath,
+    Token, TypePath,
 };
 
 use super::component::Child;

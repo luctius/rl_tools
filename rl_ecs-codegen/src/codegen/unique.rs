@@ -24,13 +24,11 @@ pub fn gen_mod_uniques(ecs: &Ident, all: &AllComponents, unique: &AllUniques) ->
     quote_spanned! {span =>
         mod unique {
             use core::convert::{TryFrom, TryInto};
-            use rl_ecs::key::KeyExt;
             use rl_ecs::stores::{StoreExBasic, StoreExBasicMut,
                 StoreExGetChild, StoreExPurge,StoreExGetParent,
                 StoreExSetParent,UniqueStore};
             use rl_ecs::slotmap::{Key};
             use rl_ecs::arrayvec::{ArrayVec};
-            use super::keys::*;
 
             #(#component_imports)*
             #(#unique_imports)*
@@ -131,15 +129,15 @@ impl CodeGenUnique for Unique {
         let key = &self.to_key_struct_name();
         quote_spanned! {span =>
             new_key_type! { pub struct #key; }
-            impl KeyExt for #key {
+            impl KeyExt for super::keys::#key {
                 #[inline]
                 fn is_some(&self) -> bool { !self.is_none() }
                 #[inline]
                 fn is_none(&self) -> bool { self.is_null() }
             }
-            impl UniqueStoreKey<#key> for super::#typ {
-                fn unique_key() -> #key {
-                    #key::null()
+            impl UniqueStoreKey<super::keys::#key> for super::#typ {
+                fn unique_key() -> super::keys::#key {
+                    super::keys::#key::null()
                 }
             }
         }
@@ -150,12 +148,12 @@ impl CodeGenUnique for Unique {
         let parent_key = self.to_key_struct_name();
 
         quote_spanned! {span =>
-            impl From<#parent_key> for #parent {
-                fn from(k: #parent_key) -> Self {
+            impl From<super::keys::#parent_key> for #parent {
+                fn from(k: super::keys::#parent_key) -> Self {
                     Self::#enum_key(k)
                 }
             }
-            impl TryFrom<#parent> for #parent_key {
+            impl TryFrom<#parent> for super::keys::#parent_key {
                 type Error = ();
                 fn try_from(p: #parent) -> Result<Self, Self::Error> {
                     match p {
@@ -192,7 +190,7 @@ impl CodeGenUniquePriv for Unique {
         let children_impl: Vec<_> = self
             .children
             .iter()
-            .map(|c| CodeGenUniqueChild::gen_get_child_impl(c, &key, &store_struct_name, all))
+            .map(|c| CodeGenUniqueChild::gen_get_child_impl(c, key, &store_struct_name, all))
             .collect();
 
         quote_spanned! {span =>
@@ -211,20 +209,20 @@ impl CodeGenUniquePriv for Unique {
             #[doc(hidden)]
             pub(super) struct #store_struct_name(#typ,#child_atom_name);
             impl #store_struct_name {
-                pub fn new(s: #typ) -> Self {
-                    Self (s, #child_atom_name::new() )
+                pub fn new(store: #typ) -> Self {
+                    Self (store, #child_atom_name::new() )
                 }
             }
-            impl StoreExBasic<#typ, #key> for #store_struct_name {
-                fn get(&self, k: #key) -> Option<&#typ> {
+            impl StoreExBasic<#typ, super::keys::#key> for #store_struct_name {
+                fn get(&self, _k: super::keys::#key) -> Option<&#typ> {
                     Some(&self.0)
                 }
                 fn is_empty(&self) -> bool {
                     false
                 }
             }
-            impl StoreExBasicMut<#typ, #key> for #store_struct_name {
-                fn get_mut(&mut self, k: #key) -> Option<&mut #typ> {
+            impl StoreExBasicMut<#typ, super::keys::#key> for #store_struct_name {
+                fn get_mut(&mut self, _k: super::keys::#key) -> Option<&mut #typ> {
                     Some(&mut self.0)
                 }
             }
@@ -245,14 +243,17 @@ impl CodeGenUniquePriv for Unique {
                 let child_key = all.get(&c.id).unwrap().to_key_struct_name();
 
                 quote_spanned! {span =>
-                    impl StoreExGetChild<#key, #child_key> for super::#ecs {
-                        fn get_children(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
+                    impl StoreExGetChild<super::keys::#key, super::keys::#child_key> for super::#ecs {
+                        fn get_children(&self, parent: super::keys::#key)
+                            -> Option<std::slice::Iter<super::keys::#child_key>> {
                             self.#store_name.get_children(parent)
                         }
-                        fn set_child(&mut self, parent: #key, child: #child_key) -> bool {
+                        fn set_child(&mut self, parent: super::keys::#key, child: super::keys::#child_key)
+                                -> bool {
                             self.#store_name.set_child(parent, child)
                         }
-                        fn clear_child(&mut self, parent: #key, child: #child_key) -> bool {
+                        fn clear_child(&mut self, parent: super::keys::#key, child: super::keys::#child_key)
+                                -> bool {
                             self.#store_name.clear_child(parent, child)
                         }
                     }
@@ -268,22 +269,25 @@ impl CodeGenUniquePriv for Unique {
                 let c_store_name = all.get(&c.id).unwrap().to_store_name();
 
                 quote_spanned! {span =>
-                    impl StoreExGetParent<#child_key, #key> for super::#ecs {
+                    impl StoreExGetParent<super::keys::#child_key, super::keys::#key> for super::#ecs {
                         #[inline]
-                        fn get_parent(&self, child: #child_key) -> Option<#key> {
+                        fn get_parent(&self, child: super::keys::#child_key)
+                                -> Option<super::keys::#key> {
                             self.#c_store_name.get_parent(child)
                         }
                     }
                     #[doc(hidden)]
-                    impl StoreExSetParent<#child_key, #key> for super::#ecs {
+                    impl StoreExSetParent<super::keys::#child_key, super::keys::#key> for super::#ecs {
                         #[doc(hidden)]
                         #[inline]
-                        fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
+                        fn clear_parent(&mut self, child: super::keys::#child_key, parent: super::keys::#key)
+                                -> bool {
                             self.#c_store_name.clear_parent(child, parent)
                         }
                         #[doc(hidden)]
                         #[inline]
-                        fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
+                        fn set_parent(&mut self, child: super::keys::#child_key, parent: super::keys::#key)
+                                -> bool {
                             self.#c_store_name.set_parent(child, parent)
                         }
                     }
@@ -292,17 +296,17 @@ impl CodeGenUniquePriv for Unique {
             .collect();
 
         quote_spanned! {span =>
-            impl StoreExBasic<#typ, #key> for super::#ecs {
+            impl StoreExBasic<#typ, super::keys::#key> for super::#ecs {
                 #[inline]
-                fn get(&self, k: #key) -> Option<&#typ> {
+                fn get(&self, k: super::keys::#key) -> Option<&#typ> {
                     self.#store_name.get(k)
                 }
                 #[inline]
                 fn is_empty(&self) -> bool { self.#store_name.is_empty() }
             }
-            impl StoreExBasicMut<#typ, #key> for super::#ecs {
+            impl StoreExBasicMut<#typ, super::keys::#key> for super::#ecs {
                 #[inline]
-                fn get_mut(&mut self, k: #key) -> Option<&mut #typ> {
+                fn get_mut(&mut self, k: super::keys::#key) -> Option<&mut #typ> {
                     self.#store_name.get_mut(k)
                 }
             }
@@ -368,7 +372,7 @@ impl CodeGenUniqueChild for Child {
         let clear_child_body = match self.child_type {
             ChildType::Single => quote_spanned! {span =>
                 if id.#cname[0].is_null() { false }
-                else { id.#cname[0] = #child_key::null(); true }
+                else { id.#cname[0] = super::keys::#child_key::null(); true }
             },
             ChildType::Array(_) | ChildType::Vec => quote_spanned! {span =>
                 if id.#cname.contains(&child) {
@@ -380,23 +384,24 @@ impl CodeGenUniqueChild for Child {
         };
 
         quote_spanned! {span =>
-            impl StoreExGetChild<#key, #child_key> for #store_name
-                where #key: Key + KeyExt,
-                      #child_key: Key + KeyExt, {
+            impl StoreExGetChild<super::keys::#key, super::keys::#child_key> for #store_name {
                 #[inline]
-                fn get_children(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
+                fn get_children(&self, _parent: super::keys::#key)
+                    -> Option<std::slice::Iter<super::keys::#child_key>> {
                     let id = &self.1;
                     #get_child_body
                 }
                 #[inline]
                 #[doc(hidden)]
-                fn set_child(&mut self, parent: #key, child: #child_key) -> bool {
+                fn set_child(&mut self, _parent: super::keys::#key, child: super::keys::#child_key)
+                        -> bool {
                     let id = &mut self.1;
                     #set_child_body
                 }
                 #[inline]
                 #[doc(hidden)]
-                fn clear_child(&mut self, parent: #key, child: #child_key) -> bool {
+                fn clear_child(&mut self, _parent: super::keys::#key, _child: super::keys::#child_key)
+                        -> bool {
                     let id = &mut self.1;
                     #clear_child_body
                 }

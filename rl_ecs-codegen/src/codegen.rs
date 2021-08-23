@@ -1,7 +1,6 @@
 use crate::validation::ValidatedEcs;
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote_spanned};
-use syn::Ident;
 
 mod component;
 mod unique;
@@ -35,12 +34,10 @@ impl From<ValidatedEcs> for TokenStream {
         let unique_keys: Vec<TokenStream> = ecs.uniques.values().map(|c| c.gen_key()).collect();
 
         quote_spanned! {span =>
+            #[allow(unused_imports)]
             pub mod #mod_name {
-                use rl_ecs::key::KeyExt;
-                use rl_ecs::stores::{StoreExBasic,StoreExBasicMut, StoreExCreate,StoreExGetParent,StoreExSetParent,StoreExGetChild, StoreExPurge};
-
                 pub mod keys {
-                    use rl_ecs::{{key::KeyExt}, stores::UniqueStoreKey};
+                    use rl_ecs::{key::KeyExt, stores::UniqueStoreKey};
                     use rl_ecs::slotmap::{new_key_type, Key};
                     #(#comp_keys)*
                     #(#unique_keys)*
@@ -51,8 +48,8 @@ impl From<ValidatedEcs> for TokenStream {
 
                 #mod_components
                 #mod_unique
-                pub use components::*;
-                pub use unique::*;
+                use components::*;
+                use unique::*;
 
                 #world_struct
             }

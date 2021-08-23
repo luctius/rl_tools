@@ -1,11 +1,8 @@
-use proc_macro2::Span;
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream, Result},
-    BareFnArg, Ident, LitInt, Token, Type, TypeBareFn, TypePath,
+    BareFnArg, Ident, Token, Type, TypePath,
 };
-
-use crate::TypeId;
 
 #[derive(Debug)]
 pub enum SystemType {

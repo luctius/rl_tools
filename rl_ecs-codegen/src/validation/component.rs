@@ -1,9 +1,6 @@
 use indexmap::IndexMap;
 use proc_macro2::Span;
-use std::{
-    collections::{HashMap, HashSet},
-    convert::TryFrom,
-};
+use std::collections::HashSet;
 use syn::{spanned::Spanned, Error, Result, TypePath};
 
 use super::{AllComponents, TypeId};
@@ -61,7 +58,36 @@ impl Component {
                 };
                 let child_type = child.child_type.into();
                 if let ChildType::Array(sz) = child_type {
-                    //TODO: validate Array Size
+                    if sz == 0 {
+                        return Err(Error::new(
+                            child.r#type.span(),
+                            "size 0 is unusable, thus not allowed.",
+                        ));
+                    }
+                    else if sz == 1 {
+                        let name = &list.get(&id).unwrap().name;
+                        child
+                            .r#type
+                            .span()
+                            .unwrap()
+                            .warning(&format!(
+                                "using [{};1] instead of {} is discouraged.",
+                                name, name
+                            ))
+                            .emit();
+                    }
+                    else if sz > 10 {
+                        let name = &list.get(&id).unwrap().name;
+                        child
+                            .r#type
+                            .span()
+                            .unwrap()
+                            .note(&format!(
+                                "use [{};{}] instead of [{}] is not recommended for large arrays.",
+                                name, sz, name
+                            ))
+                            .emit();
+                    }
                 }
 
                 list.get_mut(&comp.id.unwrap())

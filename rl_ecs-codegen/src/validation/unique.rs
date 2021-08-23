@@ -1,9 +1,5 @@
 use indexmap::IndexMap;
-use proc_macro2::Span;
-use std::{
-    collections::{HashMap, HashSet},
-    convert::TryFrom,
-};
+use std::collections::HashSet;
 use syn::{spanned::Spanned, Error, Result, TypePath};
 
 use super::component::{Child, Component};
@@ -33,7 +29,7 @@ impl Unique {
             if !duplicate_check_list.insert(c.r#type.clone()) {
                 return Err(Error::new(
                     c.r#type.span(),
-                    "Duplicate Component types are not allowed.",
+                    "Duplicate Unique types are not allowed; use the Newtype pattern instead.",
                 ));
             }
 
@@ -51,7 +47,7 @@ impl Unique {
         // Register all child components and find their component ids
         for comp in v {
             for child in &comp.children {
-                let id = match Component::search_component(&child.r#type, &all) {
+                let id = match Component::search_component(&child.r#type, all) {
                     Some(id) => id,
                     None => {
                         return Err(Error::new(

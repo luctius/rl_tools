@@ -1,15 +1,12 @@
 use indexmap::IndexMap;
 use std::{
-    collections::{HashMap, HashSet},
     convert::TryFrom,
 };
 use syn::{
-    braced, bracketed,
-    parse::{Parse, ParseStream},
-    Error, Ident, Token, Type, Visibility,
+    Error, Ident, Visibility,
 };
 
-use crate::parsing::{component as parsing_component, ParseEcs};
+use crate::parsing::ParseEcs;
 use crate::TypeId;
 
 pub mod component;

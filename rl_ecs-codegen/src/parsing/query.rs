@@ -1,8 +1,7 @@
-use proc_macro2::Span;
 use syn::{
-    braced, bracketed,
+    braced,
     parse::{Parse, ParseStream, Result},
-    Ident, Token, TypePath, Visibility,
+    Ident, Token, TypePath,
 };
 
 #[derive(Debug)]

@@ -37,7 +37,7 @@ pub struct Counter {
 create_ecs! {
     pub world Ecs {
         components: {
-            Creature: { [Stats;2], ToolUser, Location, Movable, Action },
+            Creature: { [Stats;11], ToolUser, Location, Movable, Action },
             Stats,
             Inventory: { [Item] },
             Item,

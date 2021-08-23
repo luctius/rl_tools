@@ -1,7 +1,7 @@
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream, Result},
-    Ident, Token, Type, Visibility,
+    Ident, Token, Type,
 };
 
 #[derive(Debug)]

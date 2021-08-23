@@ -1,10 +1,8 @@
 use syn::{
-    braced, bracketed,
+    braced,
     parse::{Parse, ParseStream, Result},
-    Ident, Token, Type, Visibility,
+    Ident, Token, Visibility,
 };
-
-use crate::TypeId;
 
 pub mod component;
 pub mod query;
