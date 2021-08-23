@@ -246,8 +246,8 @@ impl CodeGenUniquePriv for Unique {
 
                 quote_spanned! {span =>
                     impl StoreExGetChild<#key, #child_key> for super::#ecs {
-                        fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
-                            self.#store_name.get_child(parent)
+                        fn get_children(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
+                            self.#store_name.get_children(parent)
                         }
                         fn set_child(&mut self, parent: #key, child: #child_key) -> bool {
                             self.#store_name.set_child(parent, child)
@@ -384,7 +384,7 @@ impl CodeGenUniqueChild for Child {
                 where #key: Key + KeyExt,
                       #child_key: Key + KeyExt, {
                 #[inline]
-                fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
+                fn get_children(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
                     let id = &self.1;
                     #get_child_body
                 }

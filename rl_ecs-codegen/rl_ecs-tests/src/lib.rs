@@ -214,7 +214,7 @@ mod tests {
         
         let player_key = Player::unique_key();
         let s2 = ecs.create_and_attach(player_key, Stats {}).unwrap();
-        let s2_a: Option<&StatsKey> = ecs.get_child(player_key).unwrap().next();
+        let s2_a: Option<&StatsKey> = ecs.get_children(player_key).unwrap().next();
         assert!(s2_a.is_some() );
         assert_eq!(s2, *s2_a.unwrap());
         assert_eq!(player_key, ecs.get_parent(s2).unwrap());

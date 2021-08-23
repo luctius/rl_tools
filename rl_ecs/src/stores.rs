@@ -36,7 +36,7 @@ pub trait StoreExSetParent<KEY, PKEY>
 pub trait StoreExGetChild<KEY, CKEY>
     where KEY: Key + KeyExt,
           CKEY: Key + KeyExt, {
-    fn get_child(&self, parent: KEY) -> Option<std::slice::Iter<CKEY>>;
+    fn get_children(&self, parent: KEY) -> Option<std::slice::Iter<CKEY>>;
     #[doc(hidden)]
     fn set_child(&mut self, parent: KEY, child: CKEY) -> bool;
     #[doc(hidden)]

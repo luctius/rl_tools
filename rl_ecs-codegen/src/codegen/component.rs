@@ -397,7 +397,7 @@ impl CodeGenComponentPriv for Component {
                 quote_spanned! {span =>
                     let mut counter = 0;
                     loop {
-                        let child: Option<#child_key> = self.get_child(key).map(|k| k.map(|k| *k).nth(counter)).flatten();
+                        let child: Option<#child_key> = self.get_children(key).map(|k| k.map(|k| *k).nth(counter)).flatten();
                         if let Some(child_key) = child {
                             self.purge(child_key);
                             counter += 1;
@@ -435,8 +435,8 @@ impl CodeGenComponentPriv for Component {
 
                 quote_spanned! {span =>
                     impl StoreExGetChild<#key, #child_key> for super::#ecs {
-                        fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
-                            self.#store_name.get_child(parent)
+                        fn get_children(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
+                            self.#store_name.get_children(parent)
                         }
                         fn set_child(&mut self, parent: #key, child: #child_key) -> bool {
                             self.#store_name.set_child(parent, child)
@@ -654,7 +654,7 @@ impl CodeGenChild for Child {
                 where #key: Key + KeyExt,
                       #child_key: Key + KeyExt, {
                 #[inline]
-                fn get_child(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
+                fn get_children(&self, parent: #key) -> Option<std::slice::Iter<#child_key>> {
                     self.0.id.get(parent).map(|cidt|
                         #get_child_body
                     ).flatten()
