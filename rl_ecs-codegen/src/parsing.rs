@@ -58,13 +58,13 @@ impl Parse for ParseEcs {
         let component_stream;
         braced!(component_stream in ecs);
 
-        let mut comp_counter = 0;
+        let mut id_counter = 0;
         loop {
             let mut comp: Component = component_stream.parse()?;
-            comp.id = Some(comp_counter);
+            comp.id = Some(id_counter);
             components.push(comp);
 
-            comp_counter += 1;
+            id_counter += 1;
 
             let r = component_stream.parse::<Token![,]>();
             if component_stream.is_empty() {
@@ -84,10 +84,10 @@ impl Parse for ParseEcs {
 
             loop {
                 let mut comp: Unique = unique_stream.parse()?;
-                comp.id = Some(comp_counter);
+                comp.id = Some(id_counter);
                 uniques.push(comp);
 
-                comp_counter += 1;
+                id_counter += 1;
 
                 let r = unique_stream.parse::<Token![,]>();
                 if unique_stream.is_empty() {
@@ -112,8 +112,11 @@ impl Parse for ParseEcs {
             braced!(query_stream in ecs);
 
             loop {
-                let query: Query = query_stream.parse()?;
+                let mut query: Query = query_stream.parse()?;
+                query.id = Some(id_counter);
                 queries.push(query);
+
+                id_counter += 1;
 
                 let r = query_stream.parse::<Token![,]>();
                 if query_stream.is_empty() {

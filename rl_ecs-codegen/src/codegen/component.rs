@@ -1,6 +1,6 @@
 use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote_spanned};
-use syn::{spanned::Spanned, Ident};
+use syn::Ident;
 
 use crate::codegen::unique::{CodeGenUnique, CodeGenUniqueNames};
 use crate::validation::{

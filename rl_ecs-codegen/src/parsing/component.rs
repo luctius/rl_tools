@@ -1,7 +1,7 @@
 use syn::{
     braced, bracketed,
     parse::{Parse, ParseStream, Result},
-    LitInt, Token, TypePath,
+    LitInt, Token, Ident,
 };
 
 use crate::TypeId;
@@ -9,7 +9,7 @@ use crate::TypeId;
 #[derive(Debug)]
 pub struct Component {
     pub id: Option<TypeId>,
-    pub r#type: TypePath,
+    pub r#type: Ident,
     pub children: Vec<Child>,
 }
 impl Parse for Component {
@@ -51,7 +51,7 @@ pub enum ChildType {
 
 #[derive(Debug)]
 pub struct Child {
-    pub r#type: TypePath,
+    pub r#type: Ident,
     pub child_type: ChildType,
 }
 impl Parse for Child {

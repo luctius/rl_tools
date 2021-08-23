@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use proc_macro2::Span;
 use std::collections::HashSet;
-use syn::{spanned::Spanned, Error, Result, TypePath};
+use syn::{Error, Ident, Result};
 
 use super::{AllComponents, TypeId};
 use crate::parsing;
@@ -10,7 +10,7 @@ use crate::parsing;
 pub struct Component {
     pub id: TypeId,
     pub name: String,
-    pub r#type: TypePath,
+    pub r#type: Ident,
     pub children: Vec<Child>,
 }
 impl Component {
@@ -24,7 +24,7 @@ impl Component {
         for c in &v {
             let children = Vec::with_capacity(c.children.len());
             let id = c.id.unwrap(); //Can this fail? if so, it should be an internal error...
-            let name = c.r#type.path.segments.last().unwrap().ident.to_string();
+            let name = c.r#type.to_string();
 
             if !duplicate_check_list.insert(c.r#type.clone()) {
                 return Err(Error::new(
@@ -52,7 +52,7 @@ impl Component {
                     None => {
                         return Err(Error::new(
                             child.r#type.span(),
-                            "Child Type is not registered as a Component.",
+                            &format!("{} is not registered as a Component.", &child.r#type),
                         ));
                     }
                 };
@@ -63,8 +63,7 @@ impl Component {
                             child.r#type.span(),
                             "size 0 is unusable, thus not allowed.",
                         ));
-                    }
-                    else if sz == 1 {
+                    } else if sz == 1 {
                         let name = &list.get(&id).unwrap().name;
                         child
                             .r#type
@@ -75,8 +74,7 @@ impl Component {
                                 name, name
                             ))
                             .emit();
-                    }
-                    else if sz > 10 {
+                    } else if sz > 10 {
                         let name = &list.get(&id).unwrap().name;
                         child
                             .r#type
@@ -115,7 +113,7 @@ impl Component {
 
         Ok(list)
     }
-    pub fn search_component(typ: &TypePath, list: &AllComponents) -> Option<TypeId> {
+    pub fn search_component(typ: &Ident, list: &AllComponents) -> Option<TypeId> {
         list.iter()
             .find_map(|(k, v)| (*typ == v.r#type).then(|| *k))
     }

@@ -1,6 +1,6 @@
 use proc_macro2::TokenStream;
 use quote::{format_ident, quote_spanned};
-use syn::{spanned::Spanned, Ident};
+use syn::Ident;
 
 use crate::codegen::component::{CodeGenChild, CodeGenComponent, CodeGenComponentNames};
 use crate::validation::{

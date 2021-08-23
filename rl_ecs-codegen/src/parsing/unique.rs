@@ -1,7 +1,7 @@
 use syn::{
     braced,
     parse::{Parse, ParseStream, Result},
-    Token, TypePath,
+    Ident, Token,
 };
 
 use super::component::Child;
@@ -10,7 +10,7 @@ use crate::TypeId;
 #[derive(Debug)]
 pub struct Unique {
     pub id: Option<TypeId>,
-    pub r#type: TypePath,
+    pub r#type: Ident,
     pub children: Vec<Child>,
 }
 impl Parse for Unique {

@@ -1,6 +1,6 @@
 use indexmap::IndexMap;
 use std::collections::HashSet;
-use syn::{spanned::Spanned, Error, Result, TypePath};
+use syn::{Error, Result, Ident};
 
 use super::component::{Child, Component};
 use super::{AllComponents, AllUniques, TypeId};
@@ -9,7 +9,7 @@ use super::{AllComponents, AllUniques, TypeId};
 pub struct Unique {
     pub id: TypeId,
     pub name: String,
-    pub r#type: TypePath,
+    pub r#type: Ident,
     pub children: Vec<Child>,
 }
 impl Unique {
@@ -24,7 +24,7 @@ impl Unique {
         for c in &v {
             let children = Vec::with_capacity(c.children.len());
             let id = c.id.unwrap(); //Can this fail? if so, it should be an internal error...
-            let name = c.r#type.path.segments.last().unwrap().ident.to_string();
+            let name = c.r#type.to_string();
 
             if !duplicate_check_list.insert(c.r#type.clone()) {
                 return Err(Error::new(
@@ -52,7 +52,7 @@ impl Unique {
                     None => {
                         return Err(Error::new(
                             child.r#type.span(),
-                            "Child Type is not registered as a Component.",
+                            &format!("{} is not registered as a Component.", &child.r#type),
                         ));
                     }
                 };
@@ -72,7 +72,7 @@ impl Unique {
 
         Ok(list)
     }
-    pub fn search_component(typ: &TypePath, list: &AllComponents) -> Option<TypeId> {
+    pub fn search_component(typ: &Ident, list: &AllComponents) -> Option<TypeId> {
         list.iter()
             .find_map(|(k, v)| (*typ == v.r#type).then(|| *k))
     }

@@ -56,7 +56,7 @@ create_ecs! {
             Counter,
         },
         queries: {
-            TransferItem: { ToolUser<Inventory<Item>>, Location, Action },
+            TransferItem: { ToolUser<Inventory<Item>>, Location, Action, },
             TilePos: { Tile<Location,Inventory<Item>> },
         },
         systems: {
@@ -172,13 +172,12 @@ create_ecs! {
 
 #[cfg(test)]
 mod tests {
+    use crate::ecs::keys::StatsKey;
     use crate::*;
     use rl_ecs::stores::{
-        StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent, StoreExPurge,
-        StoreExGetChild,
-        UniqueStore, UniqueStoreKey,
+        StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetChild, StoreExGetParent,
+        StoreExPurge, UniqueStore, UniqueStoreKey,
     };
-    use crate::ecs::keys::StatsKey;
 
     #[test]
     fn it_works() {
@@ -211,11 +210,11 @@ mod tests {
         let _: &mut Player = ecs.get_unique_mut();
         let _: &Time = ecs.get_unique();
         let _: &mut Time = ecs.get_unique_mut();
-        
+
         let player_key = Player::unique_key();
         let s2 = ecs.create_and_attach(player_key, Stats {}).unwrap();
         let s2_a: Option<&StatsKey> = ecs.get_children(player_key).unwrap().next();
-        assert!(s2_a.is_some() );
+        assert!(s2_a.is_some());
         assert_eq!(s2, *s2_a.unwrap());
         assert_eq!(player_key, ecs.get_parent(s2).unwrap());
     }
