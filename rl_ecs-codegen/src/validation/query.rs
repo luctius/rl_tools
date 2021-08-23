@@ -3,7 +3,7 @@ use std::collections::HashSet;
 use syn::{Error, Ident, Result};
 
 use crate::{
-    validation::{component::Component, AllComponents, AllQueries},
+    validation::{component::Component, AllComponents, AllQueries, AllUniques},
     TypeId,
 };
 
@@ -13,11 +13,13 @@ pub struct Query {
     pub name: Ident,
     pub id: TypeId,
     pub children: Vec<Atom>,
+    pub applicable_components: Vec<TypeId>,
 }
 impl Query {
     pub fn try_into_query_list(
         v: Vec<crate::parsing::query::Query>,
         components: &AllComponents,
+        uniques: &AllUniques,
     ) -> Result<AllQueries> {
         let mut list = IndexMap::new();
 
@@ -26,6 +28,7 @@ impl Query {
             let id = q.id.unwrap();
             let name = q.name.clone();
             let mut children = Vec::new();
+            let mut applicable_components = Vec::new();
             let mut duplicate_check_list = HashSet::with_capacity(q.atoms.len());
 
             for a in &q.atoms {
@@ -74,6 +77,32 @@ impl Query {
                 children.push(Atom { id, parent });
             }
 
+            for comp in components.values() {
+                for child in &children {
+                    if child.parent.is_some() {
+                        continue;
+                    } else if let Some(comp) = comp.children.iter().find(|c| c.id == child.id) {
+                        applicable_components.push(comp.id);
+                    }
+                }
+            }
+            for unique in uniques.values() {
+                for child in &children {
+                    if child.parent.is_some() {
+                        continue;
+                    } else if let Some(unique) = unique.children.iter().find(|c| c.id == child.id) {
+                        applicable_components.push(unique.id);
+                    }
+                }
+            }
+            
+            if applicable_components.is_empty() {
+                return Err(Error::new(
+                    name.span(),
+                    "No valid base components found for this query.",
+                ));
+            }
+
             list.insert(
                 id,
                 Query {
@@ -81,6 +110,7 @@ impl Query {
                     name,
                     id,
                     children,
+                    applicable_components,
                 },
             );
         }

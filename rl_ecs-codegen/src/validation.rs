@@ -38,7 +38,7 @@ impl TryFrom<ParseEcs> for ValidatedEcs {
     fn try_from(pecs: ParseEcs) -> Result<Self, Self::Error> {
         let components = Component::try_into_component_list(pecs.components)?;
         let uniques = Unique::try_into_unique_list(pecs.uniques, &components)?;
-        let queries = Query::try_into_query_list(pecs.queries, &components)?;
+        let queries = Query::try_into_query_list(pecs.queries, &components, &uniques)?;
         // let mut systems = Vec::new();
         // let mut tasks = Vec::new();
 

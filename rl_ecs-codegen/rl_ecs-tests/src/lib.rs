@@ -57,7 +57,7 @@ create_ecs! {
         },
         queries: {
             TransferItem: { ToolUser<Inventory<Item>>, Location, Action, },
-            TilePos: { Tile<Location,Inventory<Item>> },
+            // TilePos: { Tile<Location,Inventory<Item>> },
         },
         systems: {
             #[for_each, state: u32, weight = low]
