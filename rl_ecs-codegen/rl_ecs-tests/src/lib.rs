@@ -51,8 +51,8 @@ create_ecs! {
             Timer,
         },
         uniques: {
-            Player: { Stats, ToolUser, Location, Movable, Action },
-            Time: { Timer },
+            Player: { Stats, ToolUser, Location, Movable, Action, },
+            Time: { Timer, },
             Counter,
         },
         queries: {
@@ -175,15 +175,17 @@ mod tests {
     use crate::*;
     use rl_ecs::stores::{
         StoreExBasic, StoreExCreate, StoreExCreateAttach, StoreExGetParent, StoreExPurge,
+        StoreExGetChild,
         UniqueStore, UniqueStoreKey,
     };
+    use crate::ecs::keys::StatsKey;
 
     #[test]
     fn it_works() {
         let mut ecs = Ecs::new(Player {}, Time {}, Counter { ctr: 0 });
 
         let c1 = ecs.create(Creature {});
-        let c1_s = ecs.get(c1).unwrap();
+        ecs.get(c1).unwrap();
         let s1 = ecs.create_and_attach(c1, Stats {}).unwrap();
         let l1 = ecs.create_and_attach(c1, Location {}).unwrap();
 
@@ -211,6 +213,10 @@ mod tests {
         let _: &mut Time = ecs.get_unique_mut();
         
         let player_key = Player::unique_key();
-        // let s2 = ecs.create_and_attach(player_key, Stats {}).unwrap();
+        let s2 = ecs.create_and_attach(player_key, Stats {}).unwrap();
+        let s2_a: Option<&StatsKey> = ecs.get_child(player_key).unwrap().next();
+        assert!(s2_a.is_some() );
+        assert_eq!(s2, *s2_a.unwrap());
+        assert_eq!(player_key, ecs.get_parent(s2).unwrap());
     }
 }

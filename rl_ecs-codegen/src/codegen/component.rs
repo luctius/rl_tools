@@ -1,19 +1,24 @@
-use proc_macro2::TokenStream;
+use proc_macro2::{Span, TokenStream};
 use quote::{format_ident, quote_spanned};
 use syn::{spanned::Spanned, Ident};
 
+use crate::codegen::unique::{CodeGenUnique, CodeGenUniqueNames};
 use crate::validation::{
     component::{Child, ChildType, Component},
     AllComponents, AllUniques,
 };
-use crate::codegen::unique::CodeGenUniqueNames;
+
+use crate::TypeId;
 
 pub fn gen_mod_components(ecs: &Ident, all: &AllComponents, uniques: &AllUniques) -> TokenStream {
     let span = ecs.span();
 
     let component_imports: Vec<TokenStream> = all.values().map(|c| c.gen_imports()).collect();
 
-    let comp_store_atoms: Vec<TokenStream> = all.values().map(|c| c.gen_store_atom(all, uniques)).collect();
+    let comp_store_atoms: Vec<TokenStream> = all
+        .values()
+        .map(|c| c.gen_store_atom(all, uniques))
+        .collect();
 
     let comp_ecs_impls: Vec<TokenStream> = all.values().map(|c| c.gen_ecs_impl(ecs, all)).collect();
 
@@ -130,6 +135,7 @@ trait CodeGenComponentPriv {
     fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream;
     fn gen_parents_impl(&self, parent: &Ident) -> TokenStream;
     fn gen_parents_enum_impl(&self, parent: &Ident, parents: &[TokenStream]) -> TokenStream;
+    fn gen_get_parents_impl(&self, parent_key: &Ident, span: Span) -> TokenStream;
 }
 
 pub trait CodeGenChild {
@@ -233,26 +239,61 @@ impl CodeGenComponentPriv for Component {
                 }
             })
             .collect();
-        parents.extend(uniques
-            .values()
-            .filter(|c| c.children.iter().any(|c| c.id == self.id))
-            .map(|c| {
-                let enum_key: Ident = c.to_parent_enum_key();
-                let key = c.to_key_struct_name();
+        parents.extend(
+            uniques
+                .values()
+                .filter(|c| c.children.iter().any(|c| c.id == self.id))
+                .map(|c| {
+                    let enum_key: Ident = c.to_parent_enum_key();
+                    let key = c.to_key_struct_name();
 
-                quote_spanned! {span =>
-                    #enum_key(#key),
-                }
-            })
-            .collect::<Vec<TokenStream>>()
+                    quote_spanned! {span =>
+                        #enum_key(#key),
+                    }
+                })
+                .collect::<Vec<TokenStream>>(),
         );
 
         let parent_enum_impl = self.gen_parents_enum_impl(&parent, &parents);
-        let parents_impl: Vec<TokenStream> = all
+        let mut parents_impl: Vec<TokenStream> = all
             .values()
             .filter(|c| c.children.iter().any(|c| c.id == self.id))
             .map(|c| c.gen_parents_impl(&parent))
             .collect();
+        parents_impl.extend(
+            uniques
+                .values()
+                .filter(|c| c.children.iter().any(|c| c.id == self.id))
+                .map(|c| c.gen_parents_impl(&parent))
+                .collect::<Vec<TokenStream>>(),
+        );
+
+        let mut get_parents_impl: Vec<TokenStream> = all
+            .values()
+            .filter(|c| c.children.iter().any(|c| c.id == self.id))
+            .map(|c| {
+                let span = c
+                    .children
+                    .iter()
+                    .find_map(|c| (c.id == self.id).then(|| c.span))
+                    .unwrap();
+                self.gen_get_parents_impl(&c.to_key_struct_name(), span)
+            })
+            .collect();
+        get_parents_impl.extend(
+            uniques
+                .values()
+                .filter(|c| c.children.iter().any(|c| c.id == self.id))
+                .map(|c| {
+                    let span = c
+                        .children
+                        .iter()
+                        .find_map(|c| (c.id == self.id).then(|| c.span))
+                        .unwrap();
+                    self.gen_get_parents_impl(&c.to_key_struct_name(), span)
+                })
+                .collect::<Vec<TokenStream>>(),
+        );
 
         let parent_enum_type = if parents.is_empty() {
             quote_spanned! {span => }
@@ -324,6 +365,7 @@ impl CodeGenComponentPriv for Component {
 
             #(#parents_impl)*
             #(#children_impl)*
+            #(#get_parents_impl)*
         }
     }
     fn gen_ecs_purge_impl(&self, ecs: &Ident, all: &AllComponents) -> TokenStream {
@@ -471,6 +513,44 @@ impl CodeGenComponentPriv for Component {
             #purge_impl
         }
     }
+    fn gen_get_parents_impl(&self, parent_key: &Ident, span: Span) -> TokenStream {
+        let store_name = self.to_store_struct_name();
+        let key = self.to_key_struct_name();
+
+        quote_spanned! {span =>
+            impl StoreExGetParent<#key, #parent_key> for #store_name {
+                #[inline]
+                fn get_parent(&self, child: #key) -> Option<#parent_key> {
+                    self.0.id.get(child).map(|id| id.__parent.try_into().ok() ).flatten()
+                }
+            }
+            #[doc(hidden)]
+            impl StoreExSetParent<#key, #parent_key> for #store_name {
+                #[inline]
+                #[doc(hidden)]
+                fn clear_parent(&mut self, child: #key, parent: #parent_key) -> bool {
+                    self.0.id.get_mut(child).map(|id| {
+                        if id.__parent == parent.into() {
+                            id.__parent = Default::default();
+                            true
+                        }
+                        else {false}
+                    }).unwrap_or(false)
+                }
+                #[inline]
+                #[doc(hidden)]
+                fn set_parent(&mut self, child: #key, parent: #parent_key) -> bool {
+                    self.0.id.get_mut(child).map(|id| {
+                        if id.__parent.is_none() {
+                            id.__parent = parent.into();
+                            true
+                        }
+                        else {false}
+                    }).unwrap_or(false)
+                }
+            }
+        }
+    }
 }
 
 impl CodeGenChild for Child {
@@ -596,37 +676,37 @@ impl CodeGenChild for Child {
                     }).unwrap_or(false)
                 }
             }
-            impl StoreExGetParent<#child_key, #key> for #c_store_name {
-                #[inline]
-                fn get_parent(&self, child: #child_key) -> Option<#key> {
-                    self.0.id.get(child).map(|id| id.__parent.try_into().ok() ).flatten()
-                }
-            }
-            #[doc(hidden)]
-            impl StoreExSetParent<#child_key, #key> for #c_store_name {
-                #[inline]
-                #[doc(hidden)]
-                fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
-                    self.0.id.get_mut(child).map(|id| {
-                        if id.__parent == parent.into() {
-                            id.__parent = Default::default();
-                            true
-                        }
-                        else {false}
-                    }).unwrap_or(false)
-                }
-                #[inline]
-                #[doc(hidden)]
-                fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
-                    self.0.id.get_mut(child).map(|id| {
-                        if id.__parent.is_none() {
-                            id.__parent = parent.into();
-                            true
-                        }
-                        else {false}
-                    }).unwrap_or(false)
-                }
-            }
+            // impl StoreExGetParent<#child_key, #key> for #c_store_name {
+            //     #[inline]
+            //     fn get_parent(&self, child: #child_key) -> Option<#key> {
+            //         self.0.id.get(child).map(|id| id.__parent.try_into().ok() ).flatten()
+            //     }
+            // }
+            // #[doc(hidden)]
+            // impl StoreExSetParent<#child_key, #key> for #c_store_name {
+            //     #[inline]
+            //     #[doc(hidden)]
+            //     fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
+            //         self.0.id.get_mut(child).map(|id| {
+            //             if id.__parent == parent.into() {
+            //                 id.__parent = Default::default();
+            //                 true
+            //             }
+            //             else {false}
+            //         }).unwrap_or(false)
+            //     }
+            //     #[inline]
+            //     #[doc(hidden)]
+            //     fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
+            //         self.0.id.get_mut(child).map(|id| {
+            //             if id.__parent.is_none() {
+            //                 id.__parent = parent.into();
+            //                 true
+            //             }
+            //             else {false}
+            //         }).unwrap_or(false)
+            //     }
+            // }
         }
     }
 }

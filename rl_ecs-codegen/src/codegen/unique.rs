@@ -4,7 +4,7 @@ use syn::{spanned::Spanned, Ident};
 
 use crate::codegen::component::{CodeGenChild, CodeGenComponent, CodeGenComponentNames};
 use crate::validation::{
-    component::{Child, ChildType, Component},
+    component::{Child, ChildType},
     unique::Unique,
     AllComponents, AllUniques,
 };
@@ -85,6 +85,7 @@ pub trait CodeGenUnique {
     fn gen_new(&self) -> TokenStream;
     fn gen_key(&self) -> TokenStream;
     fn gen_new_args(&self) -> TokenStream;
+    fn gen_parents_impl(&self, parent: &Ident) -> TokenStream;
 }
 impl CodeGenUnique for Unique {
     fn gen_imports(&self) -> TokenStream {
@@ -139,6 +140,28 @@ impl CodeGenUnique for Unique {
             impl UniqueStoreKey<#key> for super::#typ {
                 fn unique_key() -> #key {
                     #key::null()
+                }
+            }
+        }
+    }
+    fn gen_parents_impl(&self, parent: &Ident) -> TokenStream {
+        let span = parent.span();
+        let enum_key: Ident = self.to_parent_enum_key();
+        let parent_key = self.to_key_struct_name();
+
+        quote_spanned! {span =>
+            impl From<#parent_key> for #parent {
+                fn from(k: #parent_key) -> Self {
+                    Self::#enum_key(k)
+                }
+            }
+            impl TryFrom<#parent> for #parent_key {
+                type Error = ();
+                fn try_from(p: #parent) -> Result<Self, Self::Error> {
+                    match p {
+                        #parent::#enum_key(k) => Ok(k),
+                        _ => Err(())
+                    }
                 }
             }
         }
@@ -237,6 +260,37 @@ impl CodeGenUniquePriv for Unique {
             })
             .collect();
 
+        let parents_impl: Vec<TokenStream> = self
+            .children
+            .iter()
+            .map(|c| {
+                let child_key = all.get(&c.id).unwrap().to_key_struct_name();
+                let c_store_name = all.get(&c.id).unwrap().to_store_name();
+
+                quote_spanned! {span =>
+                    impl StoreExGetParent<#child_key, #key> for super::#ecs {
+                        #[inline]
+                        fn get_parent(&self, child: #child_key) -> Option<#key> {
+                            self.#c_store_name.get_parent(child)
+                        }
+                    }
+                    #[doc(hidden)]
+                    impl StoreExSetParent<#child_key, #key> for super::#ecs {
+                        #[doc(hidden)]
+                        #[inline]
+                        fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
+                            self.#c_store_name.clear_parent(child, parent)
+                        }
+                        #[doc(hidden)]
+                        #[inline]
+                        fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
+                            self.#c_store_name.set_parent(child, parent)
+                        }
+                    }
+                }
+            })
+            .collect();
+
         quote_spanned! {span =>
             impl StoreExBasic<#typ, #key> for super::#ecs {
                 #[inline]
@@ -261,6 +315,7 @@ impl CodeGenUniquePriv for Unique {
                 }
             }
 
+            #(#parents_impl)*
             #(#get_child_vec)*
         }
     }
@@ -285,7 +340,6 @@ impl CodeGenUniqueChild for Child {
         let span = self.span;
         let child_key = all.get(&self.id).unwrap().to_key_struct_name();
         let cname = self.to_child_name(all);
-        let c_store_name = all.get(&self.id).unwrap().to_store_struct_name();
 
         let get_child_body = match self.child_type {
             ChildType::Single => quote_spanned! {span =>
@@ -347,37 +401,6 @@ impl CodeGenUniqueChild for Child {
                     #clear_child_body
                 }
             }
-            // impl StoreExGetParent<#child_key, #key> for super::components::#c_store_name {
-            //     #[inline]
-            //     fn get_parent(&self, child: #child_key) -> Option<#key> {
-            //         self.0.id.get(child).map(|id| id.__parent.try_into().ok() ).flatten()
-            //     }
-            // }
-            // #[doc(hidden)]
-            // impl StoreExSetParent<#child_key, #key> for super::components::#c_store_name {
-            //     #[inline]
-            //     #[doc(hidden)]
-            //     fn clear_parent(&mut self, child: #child_key, parent: #key) -> bool {
-            //         self.0.id.get_mut(child).map(|id| {
-            //             if id.__parent == parent.into() {
-            //                 id.__parent = Default::default();
-            //                 true
-            //             }
-            //             else {false}
-            //         }).unwrap_or(false)
-            //     }
-            //     #[inline]
-            //     #[doc(hidden)]
-            //     fn set_parent(&mut self, child: #child_key, parent: #key) -> bool {
-            //         self.0.id.get_mut(child).map(|id| {
-            //             if id.__parent.is_none() {
-            //                 id.__parent = parent.into();
-            //                 true
-            //             }
-            //             else {false}
-            //         }).unwrap_or(false)
-            //     }
-            // }
         }
     }
 }
